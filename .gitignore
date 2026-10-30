@@ -1,0 +1,18 @@
+# Ignore everything by default.
+*
+
+# Keep the folder structure so git can descend into folders.
+!*/
+
+# Skip heavy folders entirely so status checks stay fast.
+node_modules/
+.next/
+
+# Always keep this file itself.
+!/.gitignore
+
+# Keep the source code folders (and everything inside them).
+!/frontend/app/**
+!/frontend/components/**
+
+
