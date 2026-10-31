@@ -34,7 +34,6 @@ const login = async (req, res) => {
       token,
       user: {
         id: user._id,
-        name: user.name,
         email: user.email,
         role: user.role,
       },
@@ -61,10 +60,15 @@ router.post('/students', async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    const student = new Student({
-      name,
+    const user = await User.create({
       email,
       password: hashedPassword,
+      role: 'student',
+    });
+
+    const student = await Student.create({
+      user: user._id,
+      name,
       studentId,
       major,
       gpa,
@@ -72,9 +76,7 @@ router.post('/students', async (req, res) => {
       campusCardBalance,
     });
 
-    const createdStudent = await student.save();
-
-    return res.status(201).json(createdStudent);
+    return res.status(201).json({ user: { id: user._id, email: user.email, role: user.role }, student });
   } catch (error) {
     return res.status(500).json({ message: 'Server error', error: error.message });
   }
@@ -94,19 +96,22 @@ router.post('/teachers', async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    const teacher = new Teacher({
-      name,
+    const user = await User.create({
       email,
       password: hashedPassword,
+      role: 'faculty',
+    });
+
+    const teacher = await Teacher.create({
+      user: user._id,
+      name,
       department,
       rank,
       office,
       teachingLoad,
     });
 
-    const createdTeacher = await teacher.save();
-
-    return res.status(201).json(createdTeacher);
+    return res.status(201).json({ user: { id: user._id, email: user.email, role: user.role }, teacher });
   } catch (error) {
     return res.status(500).json({ message: 'Server error', error: error.message });
   }

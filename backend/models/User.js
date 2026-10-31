@@ -13,15 +13,15 @@ const userSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
-    name: {
+    role: {
       type: String,
+      enum: ['student', 'faculty', 'director'],
       required: true,
-      trim: true,
     },
   },
   {
     timestamps: true,
-    discriminatorKey: 'role',
+    collection: 'users',
   }
 );
 

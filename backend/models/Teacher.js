@@ -1,28 +1,44 @@
 const mongoose = require('mongoose');
-const User = require('./User');
 
-const teacherSchema = new mongoose.Schema({
-  department: {
-    type: String,
-    required: true,
-    trim: true,
+const teacherSchema = new mongoose.Schema(
+  {
+    user: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: true,
+      unique: true,
+    },
+    name: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    department: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    rank: {
+      type: String,
+      enum: ['Lecturer', 'Assistant Professor', 'Associate Professor', 'Professor', 'Tenured Chair'],
+      default: 'Lecturer',
+    },
+    office: {
+      type: String,
+      trim: true,
+    },
+    teachingLoad: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
   },
-  rank: {
-    type: String,
-    enum: ['Lecturer', 'Assistant Professor', 'Associate Professor', 'Professor'],
-    default: 'Lecturer',
-  },
-  office: {
-    type: String,
-    trim: true,
-  },
-  teachingLoad: {
-    type: Number,
-    default: 0,
-    min: 0,
-  },
-});
+  {
+    timestamps: true,
+    collection: 'teachers',
+  }
+);
 
-const Teacher = User.discriminator('Teacher', teacherSchema);
+const Teacher = mongoose.model('Teacher', teacherSchema);
 
 module.exports = Teacher;

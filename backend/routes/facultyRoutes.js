@@ -1,13 +1,14 @@
 const express = require('express');
 const bcrypt = require('bcrypt');
 const Teacher = require('../models/Teacher');
+const User = require('../models/User');
 const { verifyToken, authorizeRoles } = require('../middleware/authMiddleware');
 
 const router = express.Router();
 
 router.get('/', verifyToken, authorizeRoles('director'), async (req, res) => {
   try {
-    const teachers = await Teacher.find();
+    const teachers = await Teacher.find().populate('user', 'email role');
     return res.json(teachers);
   } catch (error) {
     return res.status(500).json({ message: 'Server error', error: error.message });
@@ -16,7 +17,7 @@ router.get('/', verifyToken, authorizeRoles('director'), async (req, res) => {
 
 router.get('/profile', verifyToken, async (req, res) => {
   try {
-    const teacher = await Teacher.findById(req.user.id).select('-password');
+    const teacher = await Teacher.findOne({ user: req.user.id }).populate('user', 'email role');
 
     if (!teacher) {
       return res.status(404).json({ message: 'Teacher not found' });
@@ -42,19 +43,22 @@ router.post('/', verifyToken, authorizeRoles('director'), async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    const teacher = new Teacher({
-      name,
+    const user = await User.create({
       email,
       password: hashedPassword,
+      role: 'faculty',
+    });
+
+    const teacher = await Teacher.create({
+      user: user._id,
+      name,
       department,
       rank,
       office,
       teachingLoad,
     });
 
-    const createdTeacher = await teacher.save();
-
-    return res.status(201).json(createdTeacher);
+    return res.status(201).json({ user: { id: user._id, email: user.email, role: user.role }, teacher });
   } catch (error) {
     return res.status(500).json({ message: 'Server error', error: error.message });
   }
