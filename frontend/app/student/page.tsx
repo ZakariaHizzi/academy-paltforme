@@ -1,5 +1,12 @@
 "use client";
 
+import { useEffect, useState } from "react";
+
+import { api } from "../../lib/api";
+import type { StudentProfile } from "../../lib/types";
+import LogoutButton from "../../components/logout-button";
+import { useToast } from "../../components/toast-provider";
+
 type ClassBlockProps = {
   blockClass: string;
   code: string;
@@ -79,10 +86,67 @@ const WEEK_DAYS = [
 ];
 
 export default function StudentPortalPage() {
+  const { toast } = useToast();
+  const [profile, setProfile] = useState<StudentProfile | null>(null);
+  const [profileState, setProfileState] = useState<
+    "loading" | "ready" | "error"
+  >("loading");
+  const [profileError, setProfileError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    api.student
+      .getProfile()
+      .then((data) => {
+        if (cancelled) {
+          return;
+        }
+
+        setProfile(data);
+        setProfileState("ready");
+      })
+      .catch((error: unknown) => {
+        if (cancelled) {
+          return;
+        }
+
+        setProfileError(
+          error instanceof Error
+            ? error.message
+            : "Unable to load your student profile.",
+        );
+        setProfileState("error");
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   return (
     <main className="bg-surface min-h-screen">
           <div className="flex flex-col w-full">
             <div className="px-margin py-space-lg flex flex-col gap-space-xl max-w-[1440px] mx-auto w-full">
+              {profileState !== "ready" ? (
+                <div
+                  className={`flex items-start gap-2 p-3 rounded-lg shadow-sm ${
+                    profileState === "error"
+                      ? "bg-error-container text-on-error-container"
+                      : "bg-surface-container text-on-surface-variant"
+                  }`}
+                  role="status"
+                >
+                  <span className="material-symbols-outlined text-lg">
+                    {profileState === "error" ? "error" : "sync"}
+                  </span>
+                  <span className="font-body-sm text-body-sm">
+                    {profileState === "error"
+                      ? profileError
+                      : "Loading your registrar profile..."}
+                  </span>
+                </div>
+              ) : null}
               {/* Top Profile & Overview Section */}
               <div className="bg-surface-container-lowest rounded-xl p-space-lg shadow-sm flex flex-col gap-space-lg">
                 <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-space-lg">
@@ -108,7 +172,7 @@ export default function StudentPortalPage() {
                     <div className="flex flex-col gap-1">
                       <div className="flex flex-wrap items-center gap-space-xs">
                         <h1 className="font-headline-lg text-headline-lg text-primary">
-                          Alexander Wright
+                          {profile?.name ?? "Student Profile"}
                         </h1>
                         <span className="px-2.5 py-0.5 rounded-full bg-secondary-fixed text-on-secondary-fixed font-label-md text-label-md flex items-center gap-1">
                           <span className="material-symbols-outlined text-xs text-secondary">
@@ -119,11 +183,11 @@ export default function StudentPortalPage() {
                       </div>
                       <div className="flex flex-wrap items-center gap-x-space-md gap-y-1 text-on-surface-variant font-body-sm text-body-sm">
                         <span className="font-label-mono text-label-mono text-primary font-semibold">
-                          ID: VU-883921
+                          ID: {profile?.studentId ?? "—"}
                         </span>
                         <span>•</span>
                         <span className="font-medium text-on-surface">
-                          B.Sc. Computer Science &amp; Artificial Intelligence
+                          {profile?.major ?? "Loading major..."}
                         </span>
                         <span>•</span>
                         <span>Year 3 (Junior Standing)</span>
@@ -142,7 +206,7 @@ export default function StudentPortalPage() {
                     <button
                       className="flex items-center gap-space-xs px-3.5 py-2 rounded-lg bg-surface-container-high hover:bg-surface-container-highest text-primary font-label-lg text-label-lg shadow-sm transition-all"
                       onClick={() =>
-                        alert(
+                        toast(
                           "Generating official PDF transcript with institutional cryptoseal...",
                         )
                       }
@@ -155,7 +219,7 @@ export default function StudentPortalPage() {
                     <button
                       className="flex items-center gap-space-xs px-3.5 py-2 rounded-lg bg-surface-container-high hover:bg-surface-container-highest text-primary font-label-lg text-label-lg shadow-sm transition-all"
                       onClick={() =>
-                        alert(
+                        toast(
                           "Opening Course Registration Cart (2 reserved seats)",
                         )
                       }
@@ -171,7 +235,7 @@ export default function StudentPortalPage() {
                     <button
                       className="flex items-center gap-space-xs px-3.5 py-2 rounded-lg bg-primary hover:bg-primary-container text-on-primary font-label-lg text-label-lg shadow-sm transition-all"
                       onClick={() =>
-                        alert("Directing to Dean of Students Petition Desk")
+                        toast("Directing to Dean of Students Petition Desk")
                       }
                     >
                       <span className="material-symbols-outlined text-base">
@@ -188,10 +252,13 @@ export default function StudentPortalPage() {
                           Campus Card
                         </span>
                         <span className="font-label-lg text-label-lg font-bold">
-                          $148.50
+                          {profile
+                            ? `$${profile.campusCardBalance.toFixed(2)}`
+                            : "—"}
                         </span>
                       </div>
                     </div>
+                    <LogoutButton className="flex items-center gap-space-xs px-3.5 py-2 rounded-lg bg-surface-container-high hover:bg-surface-container-highest text-primary font-label-lg text-label-lg shadow-sm transition-all disabled:opacity-60 disabled:cursor-not-allowed" />
                   </div>
                 </div>
                 {/* Quick Metrics Ribbon */}
@@ -209,7 +276,7 @@ export default function StudentPortalPage() {
                       </span>
                       <div className="flex items-baseline gap-1">
                         <span className="font-headline-md text-headline-md font-bold text-primary">
-                          3.84
+                          {profile ? profile.gpa.toFixed(2) : "—"}
                         </span>
                         <span className="font-body-sm text-body-sm text-outline">
                           / 4.00
@@ -229,18 +296,18 @@ export default function StudentPortalPage() {
                     </div>
                     <div className="flex flex-col">
                       <span className="font-label-mono text-label-mono text-outline uppercase tracking-wider">
-                        Active Credits
+                        Credits Completed
                       </span>
                       <div className="flex items-baseline gap-1">
                         <span className="font-headline-md text-headline-md font-bold text-on-surface">
-                          16.0
+                          {profile?.creditsCompleted ?? "—"}
                         </span>
                         <span className="font-body-sm text-body-sm text-outline">
                           Credits
                         </span>
                       </div>
                       <span className="font-body-sm text-[11px] text-on-surface-variant">
-                        Full-time Regular Track
+                        Cumulative transcript total
                       </span>
                     </div>
                   </div>
@@ -359,7 +426,7 @@ export default function StudentPortalPage() {
                         detailClass="text-on-primary-fixed-variant"
                         instructor="Prof. Marcus Thorne"
                         onClick={() =>
-                          alert(
+                          toast(
                             "CS-301: Algorithms & Complexity\nProf. Marcus Thorne\nTuring Hall Rm 402",
                           )
                         }
@@ -376,7 +443,7 @@ export default function StudentPortalPage() {
                         detailClass="text-on-primary-fixed-variant"
                         instructor="Prof. Marcus Thorne"
                         onClick={() =>
-                          alert(
+                          toast(
                             "CS-301: Algorithms & Complexity\nProf. Marcus Thorne\nTuring Hall Rm 402",
                           )
                         }
@@ -393,7 +460,7 @@ export default function StudentPortalPage() {
                         detailClass="text-on-tertiary-fixed-variant"
                         instructor="Fellow D. Zhao"
                         onClick={() =>
-                          alert(
+                          toast(
                             "CS-301L: Advanced Algo Lab\nLab Fellow D. Zhao\nComputing Center Lab 3",
                           )
                         }
@@ -414,7 +481,7 @@ export default function StudentPortalPage() {
                         detailClass="text-on-surface-variant"
                         instructor="Dr. Julian Croft"
                         onClick={() =>
-                          alert(
+                          toast(
                             "MATH-240: Linear Algebra & Matrix Computing\nDr. Julian Croft\nArchimedes Auditorium B",
                           )
                         }
@@ -430,7 +497,7 @@ export default function StudentPortalPage() {
                         detailClass="text-on-primary-fixed-variant"
                         instructor="Prof. Rachel Kim"
                         onClick={() =>
-                          alert(
+                          toast(
                             "CS-340: Distributed Database Systems\nProf. Rachel Kim\nTuring Hall Rm 204",
                           )
                         }
@@ -446,7 +513,7 @@ export default function StudentPortalPage() {
                         detailClass="text-on-surface-variant"
                         instructor="Dr. Julian Croft"
                         onClick={() =>
-                          alert(
+                          toast(
                             "MATH-240: Linear Algebra & Matrix Computing\nDr. Julian Croft\nArchimedes Auditorium B",
                           )
                         }
@@ -462,7 +529,7 @@ export default function StudentPortalPage() {
                         detailClass="text-on-primary-fixed-variant"
                         instructor="Prof. Rachel Kim"
                         onClick={() =>
-                          alert(
+                          toast(
                             "CS-340: Distributed Database Systems\nProf. Rachel Kim\nTuring Hall Rm 204",
                           )
                         }
@@ -478,7 +545,7 @@ export default function StudentPortalPage() {
                         detailClass="text-on-secondary-fixed-variant"
                         instructor="TA Sarah Jenkins"
                         onClick={() =>
-                          alert(
+                          toast(
                             "MATH-240T: Problem Solving Session\nTA Sarah Jenkins\nNewton Hall 102",
                           )
                         }
@@ -515,7 +582,7 @@ export default function StudentPortalPage() {
                         detailClass="text-on-surface-variant"
                         instructor="Dr. Henrik Lindqvist"
                         onClick={() =>
-                          alert(
+                          toast(
                             "PHYS-201: Quantum Mechanics I\nDr. Henrik Lindqvist\nFaraday Hall 301",
                           )
                         }
@@ -531,7 +598,7 @@ export default function StudentPortalPage() {
                         detailClass="text-on-secondary-fixed-variant"
                         instructor="Prof. Clara Sterling"
                         onClick={() =>
-                          alert(
+                          toast(
                             "ENG-210: Technical Communications & Research Writing\nProf. Clara Sterling\nHumanities B-12",
                           )
                         }
@@ -547,7 +614,7 @@ export default function StudentPortalPage() {
                         detailClass="text-on-surface-variant"
                         instructor="Dr. Henrik Lindqvist"
                         onClick={() =>
-                          alert(
+                          toast(
                             "PHYS-201: Quantum Mechanics I\nDr. Henrik Lindqvist\nFaraday Hall 301",
                           )
                         }
@@ -563,7 +630,7 @@ export default function StudentPortalPage() {
                         detailClass="text-on-secondary-fixed-variant"
                         instructor="Prof. Clara Sterling"
                         onClick={() =>
-                          alert(
+                          toast(
                             "ENG-210: Peer Review Colloquium\nProf. Clara Sterling\nHumanities B-12",
                           )
                         }
@@ -586,7 +653,7 @@ export default function StudentPortalPage() {
                         detailClass="text-on-tertiary-fixed-variant"
                         instructor="Fellow K. Patel"
                         onClick={() =>
-                          alert(
+                          toast(
                             "CS-340L: Database Systems Practicum\nLab Fellow K. Patel\nComputing Center Lab 1",
                           )
                         }
@@ -603,7 +670,7 @@ export default function StudentPortalPage() {
                         detailClass="text-on-tertiary-fixed-variant"
                         instructor="Dr. Henrik Lindqvist"
                         onClick={() =>
-                          alert(
+                          toast(
                             "PHYS-201L: Spectroscopy Laboratory\nDr. Henrik Lindqvist\nFaraday Physics Wing 109",
                           )
                         }
@@ -619,7 +686,7 @@ export default function StudentPortalPage() {
                         detailClass="text-on-surface-variant"
                         instructor="Alexander Wright (Lead)"
                         onClick={() =>
-                          alert("Student Research Circle: AI Alignment Seminar")
+                          toast("Student Research Circle: AI Alignment Seminar")
                         }
                         room="Student Union 204"
                         title="AI Alignment Seminar"
@@ -680,7 +747,7 @@ export default function StudentPortalPage() {
                     <button
                       className="py-2 px-3 rounded-lg bg-surface-container-high hover:bg-surface-container-highest text-primary font-label-md text-label-md font-semibold transition-all"
                       onClick={() =>
-                        alert(
+                        toast(
                           "Scheduling advising session with Dr. Vance for Oct 29",
                         )
                       }
@@ -723,7 +790,7 @@ export default function StudentPortalPage() {
                     <button
                       className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-surface-container-high hover:bg-surface-container-highest text-on-surface font-label-md text-label-md transition-all"
                       onClick={() =>
-                        alert(
+                        toast(
                           "Exporting grade sheet in .CSV institutional schema",
                         )
                       }

@@ -15,7 +15,7 @@ router.get('/', verifyToken, authorizeRoles('director'), async (req, res) => {
   }
 });
 
-router.get('/profile', verifyToken, async (req, res) => {
+router.get('/profile', verifyToken, authorizeRoles('student'), async (req, res) => {
   try {
     const student = await Student.findOne({ user: req.user.id }).populate('user', 'email role');
 
@@ -42,10 +42,22 @@ router.post('/', verifyToken, authorizeRoles('director'), async (req, res) => {
       campusCardBalance,
     } = req.body;
 
+    if (!name || !email || !password || !studentId || !major) {
+      return res.status(400).json({
+        message: 'Missing required fields: name, email, password, studentId, and major are required',
+      });
+    }
+
+    const normalizedEmail = String(email).trim().toLowerCase();
+    const existingUser = await User.findOne({ email: normalizedEmail });
+    if (existingUser) {
+      return res.status(409).json({ message: 'A user with this email already exists' });
+    }
+
     const hashedPassword = await bcrypt.hash(password, 10);
 
     const user = await User.create({
-      email,
+      email: normalizedEmail,
       password: hashedPassword,
       role: 'student',
     });
@@ -55,12 +67,15 @@ router.post('/', verifyToken, authorizeRoles('director'), async (req, res) => {
       name,
       studentId,
       major,
-      gpa,
-      creditsCompleted,
-      campusCardBalance,
+      gpa: Number(gpa) || 0,
+      creditsCompleted: Number(creditsCompleted) || 0,
+      campusCardBalance: Number(campusCardBalance) || 0,
     });
 
-    return res.status(201).json({ user: { id: user._id, email: user.email, role: user.role }, student });
+    return res.status(201).json({
+      user: { id: user._id, email: user.email, role: user.role },
+      student,
+    });
   } catch (error) {
     return res.status(500).json({ message: 'Server error', error: error.message });
   }

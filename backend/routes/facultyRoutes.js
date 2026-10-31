@@ -15,7 +15,7 @@ router.get('/', verifyToken, authorizeRoles('director'), async (req, res) => {
   }
 });
 
-router.get('/profile', verifyToken, async (req, res) => {
+router.get('/profile', verifyToken, authorizeRoles('faculty'), async (req, res) => {
   try {
     const teacher = await Teacher.findOne({ user: req.user.id }).populate('user', 'email role');
 
@@ -41,10 +41,22 @@ router.post('/', verifyToken, authorizeRoles('director'), async (req, res) => {
       teachingLoad,
     } = req.body;
 
+    if (!name || !email || !password || !department || !rank) {
+      return res.status(400).json({
+        message: 'Missing required fields: name, email, password, department, and rank are required',
+      });
+    }
+
+    const normalizedEmail = String(email).trim().toLowerCase();
+    const existingUser = await User.findOne({ email: normalizedEmail });
+    if (existingUser) {
+      return res.status(409).json({ message: 'A user with this email already exists' });
+    }
+
     const hashedPassword = await bcrypt.hash(password, 10);
 
     const user = await User.create({
-      email,
+      email: normalizedEmail,
       password: hashedPassword,
       role: 'faculty',
     });
@@ -54,11 +66,14 @@ router.post('/', verifyToken, authorizeRoles('director'), async (req, res) => {
       name,
       department,
       rank,
-      office,
-      teachingLoad,
+      office: office || '',
+      teachingLoad: Number(teachingLoad) || 0,
     });
 
-    return res.status(201).json({ user: { id: user._id, email: user.email, role: user.role }, teacher });
+    return res.status(201).json({
+      user: { id: user._id, email: user.email, role: user.role },
+      teacher,
+    });
   } catch (error) {
     return res.status(500).json({ message: 'Server error', error: error.message });
   }

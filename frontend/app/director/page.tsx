@@ -1,12 +1,17 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import OnboardDrawer, {
   DEPARTMENT_COLLEGES,
   DEPARTMENT_LABELS,
   type StudentDraft,
   type TeacherDraft,
 } from "../../components/onboard-drawer";
+import LogoutButton from "../../components/logout-button";
+import { useToast } from "../../components/toast-provider";
+import { api } from "../../lib/api";
+import type { StudentProfile, TeacherProfile } from "../../lib/types";
+import { getPopulatedEmail } from "../../lib/types";
 
 type Zone = "all" | "quad" | "science" | "humanities";
 
@@ -62,6 +67,189 @@ type StudentMember = {
   notes: string;
 };
 
+function initialsFromName(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+
+  if (parts.length === 0) {
+    return "NA";
+  }
+
+  if (parts.length === 1) {
+    return parts[0].slice(0, 2).toUpperCase();
+  }
+
+  return `${parts[0].charAt(0)}${parts[parts.length - 1].charAt(0)}`.toUpperCase();
+}
+
+function formatDate(value?: string): string {
+  if (!value) {
+    return "—";
+  }
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return "—";
+  }
+
+  return date.toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
+}
+
+function resolveDepartment(value: string): {
+  code: FacultyMember["deptCode"];
+  label: string;
+  college: string;
+} {
+  const normalized = value.trim().toLowerCase();
+
+  if (normalized.includes("law")) {
+    return {
+      code: "law",
+      label: value || DEPARTMENT_LABELS.law,
+      college: DEPARTMENT_COLLEGES.law,
+    };
+  }
+
+  if (
+    normalized.includes("bio") ||
+    normalized.includes("med") ||
+    normalized.includes("health")
+  ) {
+    return {
+      code: "bio",
+      label: value || DEPARTMENT_LABELS.bio,
+      college: DEPARTMENT_COLLEGES.bio,
+    };
+  }
+
+  if (
+    normalized.includes("business") ||
+    normalized.includes("econom") ||
+    normalized.includes("management") ||
+    normalized.includes("commerce")
+  ) {
+    return {
+      code: "business",
+      label: value || DEPARTMENT_LABELS.business,
+      college: DEPARTMENT_COLLEGES.business,
+    };
+  }
+
+  return {
+    code: "eecs",
+    label: value || DEPARTMENT_LABELS.eecs,
+    college: DEPARTMENT_COLLEGES.eecs,
+  };
+}
+
+const RANK_FILTERS: Record<string, FacultyMember["rank"]> = {
+  "Tenured Chair": "dean",
+  Professor: "full",
+  "Associate Professor": "assoc",
+  "Assistant Professor": "assist",
+  Lecturer: "visiting",
+};
+
+function tenureMeta(rank: string): { label: string; className: string } {
+  switch (rank) {
+    case "Tenured Chair":
+    case "Professor":
+    case "Associate Professor":
+      return {
+        label: "Tenured",
+        className: "bg-surface-container-highest text-on-surface border-0",
+      };
+    case "Assistant Professor":
+      return {
+        label: "Tenure Track",
+        className: "bg-surface-container-high text-on-surface",
+      };
+    default:
+      return {
+        label: "Adjunct Faculty",
+        className: "bg-surface-container text-on-surface-variant",
+      };
+  }
+}
+
+function levelFromCredits(credits: number): string {
+  if (credits >= 90) {
+    return "Year 4 (Senior)";
+  }
+
+  if (credits >= 60) {
+    return "Year 3 (Junior)";
+  }
+
+  if (credits >= 30) {
+    return "Year 2 (Sophomore)";
+  }
+
+  return "Year 1 (Freshman)";
+}
+
+function toFacultyMember(profile: TeacherProfile): FacultyMember {
+  const department = resolveDepartment(profile.department ?? "");
+  const tenure = tenureMeta(profile.rank);
+
+  return {
+    initials: initialsFromName(profile.name),
+    avatarClass: "bg-primary-container text-on-primary",
+    name: profile.name,
+    title: profile.rank,
+    dept: department.label,
+    deptLabel: department.college,
+    deptCode: department.code,
+    rank: RANK_FILTERS[profile.rank] ?? "assist",
+    office: profile.office?.trim() || "Unassigned Office",
+    campus: "Main Campus",
+    credits: `${profile.teachingLoad ?? 0} Credits`,
+    sections: "—",
+    courses: "No sections assigned",
+    email: getPopulatedEmail(profile.user),
+    ext: "—",
+    tenure: tenure.label,
+    tenureClass: tenure.className,
+    dotClass: "bg-secondary",
+    employeeId: profile._id,
+    hireDate: formatDate(profile.createdAt),
+    specialization: profile.department,
+    status: "Active",
+  };
+}
+
+function toStudentMember(profile: StudentProfile): StudentMember {
+  const department = resolveDepartment(profile.major ?? "");
+
+  return {
+    initials: initialsFromName(profile.name),
+    avatarClass: "bg-secondary-container text-on-secondary-container",
+    name: profile.name,
+    studentId: profile.studentId,
+    email: getPopulatedEmail(profile.user),
+    phone: "—",
+    program: profile.major,
+    deptLabel: department.college,
+    level: levelFromCredits(profile.creditsCompleted ?? 0),
+    status: "Active",
+    statusClass: "bg-secondary-container text-on-secondary-container",
+    advisor: "Unassigned",
+    credits: `${profile.creditsCompleted ?? 0} Credits`,
+    gpa: (profile.gpa ?? 0).toFixed(2),
+    campus: "Main Campus",
+    dob: "—",
+    guardianName: "Not provided",
+    guardianPhone: "—",
+    enrollmentDate: formatDate(profile.createdAt),
+    address: "Not provided",
+    scholarship: "None",
+    notes: "",
+  };
+}
 
 const ZONE_TABS: { id: Zone; label: string }[] = [
   { id: "all", label: "All Sectors" },
@@ -69,161 +257,6 @@ const ZONE_TABS: { id: Zone; label: string }[] = [
   { id: "science", label: "Science & Eng. Complex" },
   { id: "humanities", label: "Humanities Hall" },
 ];
-
-const FACULTY: FacultyMember[] = [
-  {
-    initials: "MT",
-    avatarClass: "bg-primary-container text-on-primary",
-    name: "Prof. Marcus Thorne, Ph.D.",
-    title: "Chair of Artificial Intelligence",
-    dept: "EECS",
-    deptLabel: "College of Engineering",
-    deptCode: "eecs",
-    rank: "full",
-    office: "Turing Center 402",
-    campus: "Science Quadrangle",
-    credits: "12 Credits",
-    sections: "3 Sections",
-    courses: "CS-101, CS-501, CS-699",
-    email: "m.thorne@veritas.edu",
-    ext: "Ext. 4108",
-    tenure: "Tenured Chair",
-    tenureClass: "bg-surface-container-highest text-on-surface border-0",
-    dotClass: "bg-secondary",
-  },
-  {
-    initials: "AC",
-    avatarClass: "bg-secondary-container text-on-secondary-container",
-    name: "Dr. Alistair Chen, M.D., Ph.D.",
-    title: "Lead Investigator in Gene Expression",
-    dept: "Biomedical Sciences",
-    deptLabel: "School of Medicine",
-    deptCode: "bio",
-    rank: "assoc",
-    office: "Pasteur Hall 215",
-    campus: "Medical Annex",
-    credits: "9 Credits",
-    sections: "2 Sections",
-    courses: "BIO-200, BIO-780",
-    email: "a.chen@veritas.edu",
-    ext: "Ext. 7234",
-    tenure: "Tenure-Track",
-    tenureClass: "bg-surface-container-high text-on-surface",
-    dotClass: "bg-primary",
-  },
-  {
-    initials: "RA",
-    avatarClass: "bg-tertiary-container text-tertiary-fixed",
-    name: "Dean Robert Albright, J.D.",
-    title: "Dean of Veritas Law",
-    dept: "Constitutional Jurisprudence",
-    deptLabel: "Faculty of Law",
-    deptCode: "law",
-    rank: "dean",
-    office: "Hamilton Chamber 100",
-    campus: "South Quadrangle",
-    credits: "6 Credits",
-    sections: "1 Section",
-    courses: "LAW-810 (Seminar)",
-    email: "dean.albright@veritas.edu",
-    ext: "Ext. 1001",
-    tenure: "College Dean",
-    tenureClass: "bg-secondary-container text-on-secondary-container",
-    dotClass: "bg-secondary",
-  },
-  {
-    initials: "KJ",
-    avatarClass: "bg-surface-container-high text-primary",
-    name: "Prof. Katherine Jenkins, Ph.D.",
-    title: "Autonomous Systems Fellow",
-    dept: "Computer Systems & Robotics",
-    deptLabel: "College of Engineering",
-    deptCode: "eecs",
-    rank: "assist",
-    office: "Robotics Lab Rm 112",
-    campus: "Science Quadrangle",
-    credits: "12 Credits",
-    sections: "3 Sections",
-    courses: "CS-480L, CS-220",
-    email: "k.jenkins@veritas.edu",
-    ext: "Ext. 5520",
-    tenure: "Tenure-Track",
-    tenureClass: "bg-surface-container-high text-on-surface",
-    dotClass: "bg-primary",
-  },
-  {
-    initials: "CS",
-    avatarClass: "bg-surface-container-lowest text-secondary",
-    name: "Prof. Clara Sterling, LL.M.",
-    title: "Visiting Chair in Health Economics",
-    dept: "Business & Health Systems",
-    deptLabel: "School of Management",
-    deptCode: "business",
-    rank: "visiting",
-    office: "Wharton Hall 308",
-    campus: "Central Plaza",
-    credits: "8 Credits",
-    sections: "2 Sections",
-    courses: "PHIL-312, ECON-604",
-    email: "c.sterling@veritas.edu",
-    ext: "Ext. 8901",
-    tenure: "Visiting Scholar",
-    tenureClass: "bg-surface-container text-on-surface-variant",
-    dotClass: "bg-outline",
-  },
-];
-
-const INITIAL_STUDENTS: StudentMember[] = [
-  {
-    initials: "AO",
-    avatarClass: "bg-secondary-container text-on-secondary-container",
-    name: "Amara N. Okafor",
-    studentId: "VU-81920",
-    email: "a.okafor@veritas.edu",
-    phone: "+1 (555) 010-8192",
-    program: "B.Sc. Computer Science & Artificial Intelligence",
-    deptLabel: "College of Engineering",
-    level: "Undergraduate Year 3",
-    status: "Active",
-    statusClass: "bg-secondary-container text-on-secondary-container",
-    advisor: "Prof. Marcus Thorne",
-    credits: "18 Credits",
-    gpa: "3.82",
-    campus: "Main Campus",
-    dob: "2004-03-14",
-    guardianName: "Ngozi Okafor",
-    guardianPhone: "+1 (555) 010-7711",
-    enrollmentDate: "2023-08-21",
-    address: "14 Scholars Row, Apt 2B, Veritas City, United States",
-    scholarship: "Merit Scholarship",
-    notes: "Dean's List, Fall 2024.",
-  },
-  {
-    initials: "LP",
-    avatarClass: "bg-primary-container text-on-primary",
-    name: "Liam J. Petrov",
-    studentId: "VU-82417",
-    email: "l.petrov@veritas.edu",
-    phone: "+1 (555) 010-5521",
-    program: "M.Sc. Data Science & Biomedical Informatics",
-    deptLabel: "School of Medicine",
-    level: "Master's",
-    status: "Active",
-    statusClass: "bg-secondary-container text-on-secondary-container",
-    advisor: "Dr. Alistair Chen",
-    credits: "12 Credits",
-    gpa: "3.91",
-    campus: "Medical Annex",
-    dob: "2001-11-02",
-    guardianName: "Elena Petrov",
-    guardianPhone: "+1 (555) 010-4417",
-    enrollmentDate: "2024-08-19",
-    address: "8 Pasteur Court, Veritas City, United States",
-    scholarship: "Research Assistantship",
-    notes: "Graduate teaching assistant for BIO-200.",
-  },
-];
-
 
 const METRICS = [
   {
@@ -498,16 +531,84 @@ const BUDGETS = [
 ];
 
 export default function DirectorSuitePage() {
+  const { toast } = useToast();
+  const showToast = toast;
   const [zone, setZone] = useState<Zone>("all");
   const [search, setSearch] = useState("");
   const [dept, setDept] = useState("all");
   const [rank, setRank] = useState("all");
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [toast, setToast] = useState<string | null>(null);
-  const [facultyRoster, setFacultyRoster] = useState<FacultyMember[]>(FACULTY);
-  const [students, setStudents] = useState<StudentMember[]>(INITIAL_STUDENTS);
+  const [facultyRoster, setFacultyRoster] = useState<FacultyMember[]>([]);
+  const [students, setStudents] = useState<StudentMember[]>([]);
+  const [registryState, setRegistryState] = useState<
+    "loading" | "ready" | "error"
+  >("loading");
+  const [registryError, setRegistryError] = useState<string | null>(null);
   const [onboardMode, setOnboardMode] = useState<"teacher" | "student" | null>(
     null,
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+
+    Promise.all([api.director.listStudents(), api.director.listFaculty()])
+      .then(([studentRecords, facultyRecords]) => {
+        if (cancelled) {
+          return;
+        }
+
+        setStudents(studentRecords.map(toStudentMember));
+        setFacultyRoster(facultyRecords.map(toFacultyMember));
+        setRegistryState("ready");
+      })
+      .catch((error: unknown) => {
+        if (cancelled) {
+          return;
+        }
+
+        setRegistryError(
+          error instanceof Error
+            ? error.message
+            : "Unable to load the institutional registry.",
+        );
+        setRegistryState("error");
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const metrics = useMemo(
+    () =>
+      METRICS.map((metric) => {
+        if (metric.label === "Active Faculty") {
+          return {
+            ...metric,
+            value: facultyRoster.length.toLocaleString("en-US"),
+            sub: "Registered faculty profiles",
+            note:
+              registryState === "ready"
+                ? "Live registry records"
+                : "Syncing registry...",
+          };
+        }
+
+        if (metric.label === "Enrolled Scholars") {
+          return {
+            ...metric,
+            value: students.length.toLocaleString("en-US"),
+            sub: "Registered student profiles",
+            note:
+              registryState === "ready"
+                ? "Live registry records"
+                : "Syncing registry...",
+          };
+        }
+
+        return metric;
+      }),
+    [facultyRoster.length, students.length, registryState],
   );
 
   const visibleFaculty = useMemo(() => {
@@ -520,11 +621,6 @@ export default function DirectorSuitePage() {
       return matchesSearch && matchesDept && matchesRank;
     });
   }, [facultyRoster, search, dept, rank]);
-
-  function showToast(message: string) {
-    setToast(message);
-    setTimeout(() => setToast(null), 3500);
-  }
 
   function fullName(draft: {
     firstName: string;
@@ -620,7 +716,7 @@ export default function DirectorSuitePage() {
   }
 
   function showTeacherDossier(member: FacultyMember) {
-    alert(
+    showToast(
       [
         member.name,
         member.title,
@@ -642,7 +738,7 @@ export default function DirectorSuitePage() {
   }
 
   function showStudentDossier(student: StudentMember) {
-    alert(
+    showToast(
       [
         student.name,
         `Matriculation No.: ${student.studentId}`,
@@ -674,6 +770,25 @@ export default function DirectorSuitePage() {
     <div className="min-h-screen">
         <main className="bg-surface min-h-screen">
           <div className="flex flex-col w-full">
+            {registryState !== "ready" ? (
+              <div
+                className={`mx-margin mt-space-md flex items-start gap-2 p-3 rounded-lg shadow-sm ${
+                  registryState === "error"
+                    ? "bg-error-container text-on-error-container"
+                    : "bg-surface-container text-on-surface-variant"
+                }`}
+                role="status"
+              >
+                <span className="material-symbols-outlined text-lg">
+                  {registryState === "error" ? "error" : "sync"}
+                </span>
+                <span className="font-body-sm text-body-sm">
+                  {registryState === "error"
+                    ? registryError
+                    : "Loading the institutional registry from the API..."}
+                </span>
+              </div>
+            ) : null}
             {/* Executive Institutional Banner & Provost Controls */}
             <section className="px-margin pt-space-lg pb-space-md">
               <div className="flex flex-col xl:flex-row xl:items-end justify-between gap-space-lg bg-surface-container-low p-space-lg rounded-xl shadow-sm">
@@ -698,6 +813,7 @@ export default function DirectorSuitePage() {
                 </div>
                 {/* Quick Executive Action Group */}
                 <div className="flex flex-wrap items-center gap-space-sm">
+                  <LogoutButton className="flex items-center gap-space-xs px-space-md py-2.5 bg-surface-container-lowest text-primary font-label-lg text-label-lg rounded-lg shadow-sm hover:bg-surface-container hover:shadow transition-all disabled:opacity-60 disabled:cursor-not-allowed" />
                   <button
                     className="flex items-center gap-space-xs px-space-md py-2.5 bg-surface-container-lowest text-primary font-label-lg text-label-lg rounded-lg shadow-sm hover:bg-surface-container hover:shadow transition-all"
                     onClick={() =>
@@ -721,7 +837,7 @@ export default function DirectorSuitePage() {
             {/* Section 1: Executive Overview Key Analytics */}
             <section className="px-margin pb-space-lg">
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-space-md">
-                {METRICS.map((metric) => (
+                {metrics.map((metric) => (
                   <div
                     className="bg-surface-container-lowest p-space-md rounded-xl shadow-sm flex flex-col justify-between hover:shadow-md transition-shadow"
                     key={metric.label}
@@ -1193,6 +1309,20 @@ export default function DirectorSuitePage() {
                           </td>
                         </tr>
                       ))}
+                      {visibleFaculty.length === 0 ? (
+                        <tr>
+                          <td
+                            className="py-space-lg px-space-md text-center font-body-sm text-body-sm text-on-surface-variant"
+                            colSpan={7}
+                          >
+                            {facultyRoster.length === 0
+                              ? registryState === "error"
+                                ? "Unable to load faculty records from the API."
+                                : "Loading faculty records..."
+                              : "No faculty members match the current filters."}
+                          </td>
+                        </tr>
+                      ) : null}
                     </tbody>
                   </table>
                 </div>
@@ -1210,7 +1340,7 @@ export default function DirectorSuitePage() {
                       Previous
                     </button>
                     <span className="px-2 font-label-mono text-label-mono text-primary font-bold">
-                      1 / 98
+                      1 / 1
                     </span>
                     <button className="px-3 py-1 bg-surface-container-low text-on-surface rounded font-label-md text-label-md hover:bg-surface-container transition-colors">
                       Next
@@ -1382,8 +1512,11 @@ export default function DirectorSuitePage() {
                             className="py-space-lg px-space-md text-center font-body-sm text-body-sm text-on-surface-variant"
                             colSpan={7}
                           >
-                            No students have been registered yet. Use “Add Student” to enroll the
-                            first scholar.
+                            {registryState === "error"
+                              ? "Unable to load student records from the API."
+                              : registryState === "loading"
+                                ? "Loading student records..."
+                                : "No students have been registered yet. Use “Add Student” to enroll the first scholar."}
                           </td>
                         </tr>
                       ) : null}
@@ -1730,18 +1863,6 @@ export default function DirectorSuitePage() {
                 onSubmitTeacher={handleAddTeacher}
               />
             ) : null}
-
-            {/* Notification Toast for Administrative Action */}
-            <div
-              className={`fixed bottom-6 right-6 bg-primary text-on-primary px-space-md py-3 rounded-lg shadow-xl z-50 transform transition-all duration-300 flex items-center gap-space-sm ${
-                toast ? "" : "translate-y-24 opacity-0"
-              }`}
-            >
-              <span className="material-symbols-outlined text-secondary">check_circle</span>
-              <span className="font-body-sm text-body-sm">
-                {toast ?? "Master Registry Updated Successfully."}
-              </span>
-            </div>
           </div>
         </main>
     </div>

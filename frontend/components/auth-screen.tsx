@@ -4,53 +4,52 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
-function resolveDestination(identifier: string) {
-  const value = identifier.trim().toLowerCase();
-
-  if (
-    value.includes("admin") ||
-    value.includes("director") ||
-    value.includes("provost")
-  ) {
-    return "/director";
-  }
-
-  if (
-    value.includes("faculty") ||
-    value.includes("prof") ||
-    value.startsWith("fac-") ||
-    value.includes("lecturer")
-  ) {
-    return "/faculty";
-  }
-
-  return "/student";
-}
+import { login } from "../lib/auth";
+import { ROLE_HOME } from "../lib/types";
+import { useToast } from "./toast-provider";
 
 export default function AuthScreen() {
   const router = useRouter();
+  const { toast } = useToast();
   const [showPassword, setShowPassword] = useState(false);
   const [loginState, setLoginState] = useState<
     "idle" | "verifying" | "success"
   >("idle");
+  const [loginError, setLoginError] = useState<string | null>(null);
 
-  function simulateAuth(event: React.FormEvent<HTMLFormElement>) {
+  async function handleLogin(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const form = new FormData(event.currentTarget);
-    const identifier = String(form.get("login-id") ?? "");
-    const destination = resolveDestination(identifier);
 
+    const form = new FormData(event.currentTarget);
+    const email = String(form.get("email") ?? "").trim();
+    const password = String(form.get("login-password") ?? "");
+
+    if (!email || !password) {
+      setLoginError("Enter your official email and password.");
+      return;
+    }
+
+    setLoginError(null);
     setLoginState("verifying");
-    setTimeout(() => {
+
+    try {
+      const user = await login({ email, password });
+
       setLoginState("success");
-      setTimeout(() => {
-        router.push(destination);
-      }, 900);
-    }, 1200);
+      router.replace(ROLE_HOME[user.role]);
+      router.refresh();
+    } catch (error) {
+      setLoginState("idle");
+      setLoginError(
+        error instanceof Error
+          ? error.message
+          : "Unable to sign in. Please try again.",
+      );
+    }
   }
 
   function simulateHardwareAuth(method: string) {
-    alert(
+    toast(
       `Initiating ${method} verification handshake with Veritas Identity Daemon.`,
     );
   }
@@ -158,17 +157,28 @@ export default function AuthScreen() {
               {/* Sign In Form */}
               <form
                 className="flex flex-col gap-space-md"
-                onSubmit={simulateAuth}
+                onSubmit={handleLogin}
               >
+                {loginError ? (
+                  <div
+                    className="flex items-start gap-2 p-3 rounded-lg bg-error-container text-on-error-container"
+                    role="alert"
+                  >
+                    <span className="material-symbols-outlined text-lg shrink-0">
+                      error
+                    </span>
+                    <span className="font-body-sm text-body-sm">{loginError}</span>
+                  </div>
+                ) : null}
                 {/* University ID / Email Field */}
                 <div>
                   <label
                     className="flex items-center justify-between font-label-lg text-label-lg text-primary mb-1.5"
-                    htmlFor="login-id"
+                    htmlFor="email"
                   >
-                    <span>University ID or Official Email</span>
+                    <span>Official Email</span>
                     <span className="font-label-mono text-label-mono text-on-surface-variant">
-                      e.g. VU-81920
+                      e.g. s.doe@veritas.edu
                     </span>
                   </label>
                   <div className="relative flex items-center">
@@ -176,12 +186,13 @@ export default function AuthScreen() {
                       badge
                     </span>
                     <input
+                      autoComplete="email"
                       className="w-full pl-10 pr-3 py-2 bg-surface rounded text-on-surface placeholder:text-outline-variant font-body-md text-body-md focus:bg-surface-container-lowest focus:outline-none transition-colors"
-                      id="login-id"
-                      name="login-id"
+                      id="email"
+                      name="email"
                       placeholder="s.doe@veritas.edu"
                       required
-                      type="text"
+                      type="email"
                     />
                   </div>
                 </div>
@@ -199,7 +210,7 @@ export default function AuthScreen() {
                       className="font-label-md text-label-md text-secondary hover:underline"
                       href="javascript:void(0)"
                       onClick={() =>
-                        alert(
+                        toast(
                           "Password reset instructions will be dispatched to your registered recovery contact.",
                         )
                       }
@@ -212,6 +223,7 @@ export default function AuthScreen() {
                       key
                     </span>
                     <input
+                      autoComplete="current-password"
                       className="w-full pl-10 pr-10 py-2 bg-surface rounded text-on-surface placeholder:text-outline-variant font-body-md text-body-md focus:bg-surface-container-lowest focus:outline-none transition-colors"
                       id="login-password"
                       name="login-password"

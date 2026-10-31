@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { ToastProvider } from "../components/toast-provider";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -30,7 +31,9 @@ export default function RootLayout({
           href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
         />
       </head>
-      <body className="bg-surface font-body-md text-on-surface">{children}</body>
+      <body className="bg-surface font-body-md text-on-surface">
+        <ToastProvider>{children}</ToastProvider>
+      </body>
     </html>
   );
 }

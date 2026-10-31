@@ -1,6 +1,12 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+
+import { api } from "../../lib/api";
+import type { TeacherProfile } from "../../lib/types";
+import { getPopulatedEmail } from "../../lib/types";
+import LogoutButton from "../../components/logout-button";
+import { useToast } from "../../components/toast-provider";
 
 type Student = {
   id: string;
@@ -143,7 +149,13 @@ type GradeDraft = {
 };
 
 export default function FacultyHubPage() {
+  const { toast } = useToast();
   const [search, setSearch] = useState("");
+  const [profile, setProfile] = useState<TeacherProfile | null>(null);
+  const [profileState, setProfileState] = useState<
+    "loading" | "ready" | "error"
+  >("loading");
+  const [profileError, setProfileError] = useState<string | null>(null);
   const [gradeDraft, setGradeDraft] = useState<GradeDraft>({
     student: "Marcus Sterling",
     studentId: "VU-883109",
@@ -153,7 +165,39 @@ export default function FacultyHubPage() {
   });
   const [gradeModalOpen, setGradeModalOpen] = useState(false);
   const [curveModalOpen, setCurveModalOpen] = useState(false);
-  const [broadcastToast, setBroadcastToast] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    api.faculty
+      .getProfile()
+      .then((data) => {
+        if (cancelled) {
+          return;
+        }
+
+        setProfile(data);
+        setProfileState("ready");
+      })
+      .catch((error: unknown) => {
+        if (cancelled) {
+          return;
+        }
+
+        setProfileError(
+          error instanceof Error
+            ? error.message
+            : "Unable to load your faculty profile.",
+        );
+        setProfileState("error");
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const profileEmail = getPopulatedEmail(profile?.user);
 
   const visibleStudents = useMemo(() => {
     const term = search.toLowerCase();
@@ -199,14 +243,34 @@ export default function FacultyHubPage() {
   }
 
   function simulateBroadcastAlert() {
-    setBroadcastToast(true);
-    setTimeout(() => setBroadcastToast(false), 4000);
+    toast("Notice successfully dispatched to 42 student portals.", {
+      variant: "success",
+    });
   }
 
   return (
     <div className="min-h-screen">
         <main className="bg-surface min-h-screen">
           <div className="flex flex-col w-full">
+            {profileState !== "ready" ? (
+              <div
+                className={`mx-margin mt-space-md flex items-start gap-2 p-3 rounded-lg shadow-sm ${
+                  profileState === "error"
+                    ? "bg-error-container text-on-error-container"
+                    : "bg-surface-container text-on-surface-variant"
+                }`}
+                role="status"
+              >
+                <span className="material-symbols-outlined text-lg">
+                  {profileState === "error" ? "error" : "sync"}
+                </span>
+                <span className="font-body-sm text-body-sm">
+                  {profileState === "error"
+                    ? profileError
+                    : "Loading your faculty profile..."}
+                </span>
+              </div>
+            ) : null}
             {/* Top Academic Context Ribbon */}
             <div className="w-full bg-surface-container-lowest px-margin py-space-sm flex flex-wrap items-center justify-between gap-space-sm shadow-sm">
               <div className="flex items-center gap-space-sm">
@@ -228,6 +292,8 @@ export default function FacultyHubPage() {
                   <span className="material-symbols-outlined text-base">print</span> Print Official
                   Syllabus &amp; Sheet
                 </button>
+                <div className="h-3.5 w-px bg-outline-variant"></div>
+                <LogoutButton className="font-label-md text-label-md text-primary font-semibold hover:text-on-primary-container transition-colors flex items-center gap-1 disabled:opacity-60 disabled:cursor-not-allowed" />
               </div>
             </div>
 
@@ -255,29 +321,28 @@ export default function FacultyHubPage() {
                     <div>
                       <div className="flex items-center gap-space-sm flex-wrap">
                         <h1 className="font-headline-lg text-headline-lg text-on-primary font-bold">
-                          Professor Sarah Jenkins, Ph.D.
+                          {profile?.name ?? "Faculty Profile"}
                         </h1>
                         <span className="bg-primary-container text-primary-fixed text-xs font-semibold px-2 py-0.5 rounded uppercase font-label-mono">
-                          Tenured Faculty
+                          {profile?.rank ?? "Faculty"}
                         </span>
                       </div>
                       <p className="font-body-md text-body-md text-primary-fixed-dim mt-0.5">
-                        Department of Electrical Engineering &amp; Computer Science • Senior Faculty Fellow
-                        in Distributed Systems
+                        {profile?.department ?? "Department not loaded"} • Faculty Portal
                       </p>
                       <div className="flex items-center gap-space-md mt-2 text-primary-fixed text-body-sm font-label-md">
                         <span className="flex items-center gap-1">
                           <span className="material-symbols-outlined text-base text-secondary-fixed">
                             mail
                           </span>{" "}
-                          s.jenkins@veritas.edu
+                          {profileEmail}
                         </span>
                         <span>•</span>
                         <span className="flex items-center gap-1">
                           <span className="material-symbols-outlined text-base text-secondary-fixed">
                             location_on
                           </span>{" "}
-                          Turing Hall, Suite 412B
+                          {profile?.office ?? "Office not assigned"}
                         </span>
                         <span>•</span>
                         <span className="flex items-center gap-1">
@@ -296,7 +361,7 @@ export default function FacultyHubPage() {
                         verified_user
                       </span>
                       <span className="font-label-mono text-label-mono text-surface-variant font-medium">
-                        Registrar Census Status: Verified
+                        Teaching Load: {profile?.teachingLoad ?? "—"} Credits
                       </span>
                     </div>
                     <button className="px-space-md py-2 bg-secondary text-on-secondary font-label-lg text-label-lg rounded-lg shadow-sm hover:brightness-110 active:scale-95 transition-all flex items-center gap-2">
@@ -916,14 +981,6 @@ export default function FacultyHubPage() {
                       </button>
                     </div>
                   </div>
-                  <div
-                    className={`${
-                      broadcastToast ? "" : "hidden "
-                    }mt-2 p-2 bg-secondary-fixed text-on-secondary-fixed rounded font-label-md text-label-md text-center`}
-                    id="broadcastSuccessToast"
-                  >
-                    Notice successfully dispatched to 42 student portals.
-                  </div>
                 </div>
 
                 {/* Department Calendar / Approaching Deadlines Card */}
@@ -1153,7 +1210,9 @@ export default function FacultyHubPage() {
                     <button
                       className="px-4 py-2 bg-surface-container-highest hover:bg-surface-variant text-primary font-label-md text-label-md font-semibold rounded-lg transition-colors"
                       onClick={() => {
-                        alert("Grade draft has been saved locally for instructor review.");
+                        toast("Grade draft has been saved locally for instructor review.", {
+                          variant: "success",
+                        });
                         setGradeModalOpen(false);
                       }}
                     >
@@ -1162,8 +1221,9 @@ export default function FacultyHubPage() {
                     <button
                       className="px-space-md py-2 bg-primary hover:bg-primary-container text-on-primary font-label-md text-label-md font-semibold rounded-lg shadow-sm transition-all flex items-center gap-1.5"
                       onClick={() => {
-                        alert(
+                        toast(
                           `Official grade of ${total.toFixed(1)}% has been published to student registrar transcript.`,
+                          { variant: "success" },
                         );
                         setGradeModalOpen(false);
                       }}
