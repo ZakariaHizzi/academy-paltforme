@@ -10,9 +10,7 @@ import {
 
 export const runtime = "nodejs";
 
-const BACKEND_URL = (
-  process.env.BACKEND_URL ?? "http://localhost:5000"
-).replace(/\/+$/, "");
+const BACKEND_URL = process.env.BACKEND_URL;
 
 const BACKEND_TIMEOUT_MS = 15_000;
 

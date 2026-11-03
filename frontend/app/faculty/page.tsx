@@ -188,9 +188,7 @@ export default function FacultyHubPage() {
         const studentList = teacherData.students ?? [];
         const studentIds: string[] = studentList
           .map((item) =>
-            typeof item === "string"
-              ? item
-              : item?._id || item?.studentId,
+            typeof item === "string" ? item : item?._id || item?.studentId,
           )
           .filter((id): id is string => Boolean(id));
 
@@ -207,7 +205,9 @@ export default function FacultyHubPage() {
                 return res.value;
               }
               const fallback = studentList[index];
-              return fallback && typeof fallback === "object" && "name" in fallback
+              return fallback &&
+                typeof fallback === "object" &&
+                "name" in fallback
                 ? (fallback as StudentProfile)
                 : null;
             })
@@ -257,17 +257,15 @@ export default function FacultyHubPage() {
 
   const profileEmail = getPopulatedEmail(profile?.user);
 
-  const roster = useMemo(
-    () => students.map(toRosterStudent),
-    [students],
-  );
+  const roster = useMemo(() => students.map(toRosterStudent), [students]);
 
   const visibleStudents = useMemo(() => {
     const term = search.toLowerCase();
     return roster.filter((student) => {
-      const matchesSearch = `${student.name} ${student.id} ${student.program} ${student.track}`
-        .toLowerCase()
-        .includes(term);
+      const matchesSearch =
+        `${student.name} ${student.id} ${student.program} ${student.track}`
+          .toLowerCase()
+          .includes(term);
 
       if (!matchesSearch) return false;
 
@@ -324,9 +322,8 @@ export default function FacultyHubPage() {
 
   const submissionsCount = useMemo(
     () =>
-      roster.filter(
-        (s) => s.labs !== null || s.dossier.tone === "secondary",
-      ).length,
+      roster.filter((s) => s.labs !== null || s.dossier.tone === "secondary")
+        .length,
     [roster],
   );
 
@@ -355,8 +352,8 @@ export default function FacultyHubPage() {
       scores.length === 0
         ? 0
         : scores.length % 2 === 1
-        ? scores[Math.floor(scores.length / 2)]
-        : (scores[scores.length / 2 - 1] + scores[scores.length / 2]) / 2;
+          ? scores[Math.floor(scores.length / 2)]
+          : (scores[scores.length / 2 - 1] + scores[scores.length / 2]) / 2;
 
     const maxScore = scores.length === 0 ? 0 : Math.max(...scores);
 
@@ -385,10 +382,10 @@ export default function FacultyHubPage() {
           status === "present"
             ? "Present"
             : status === "absent"
-            ? "Absent"
-            : status === "late"
-            ? "Tardy"
-            : "Excused Absence";
+              ? "Absent"
+              : status === "late"
+                ? "Tardy"
+                : "Excused Absence";
         return {
           ...s,
           roster: {
@@ -839,15 +836,21 @@ export default function FacultyHubPage() {
                     value={standingFilter}
                     onChange={(event) => setStandingFilter(event.target.value)}
                   >
-                    <option value="all">All Grade Standings ({roster.length})</option>
+                    <option value="all">
+                      All Grade Standings ({roster.length})
+                    </option>
                     <option value="honors">Honors / Top Tier (≥ 90%)</option>
-                    <option value="borderline">Borderline Tier (70% - 79%)</option>
+                    <option value="borderline">
+                      Borderline Tier (70% - 79%)
+                    </option>
                     <option value="alert">Academic Alert (&lt; 70%)</option>
                   </select>
                   <select
                     className="h-10 px-3 bg-surface text-on-surface font-label-md text-label-md rounded-lg border-0 shadow-inner focus:ring-2 focus:ring-primary focus:outline-none"
                     value={attendanceFilter}
-                    onChange={(event) => setAttendanceFilter(event.target.value)}
+                    onChange={(event) =>
+                      setAttendanceFilter(event.target.value)
+                    }
                   >
                     <option value="all">All Attendance Status</option>
                     <option value="flagged">Absence Flagged</option>
@@ -1141,14 +1144,6 @@ export default function FacultyHubPage() {
                               >
                                 <span className="material-symbols-outlined text-base">
                                   {student.iconActions.flag}
-                                </span>
-                              </button>
-                              <button
-                                className="p-1.5 rounded text-outline hover:text-primary hover:bg-surface-container-high transition-colors"
-                                title="Message Student"
-                              >
-                                <span className="material-symbols-outlined text-base">
-                                  chat_bubble
                                 </span>
                               </button>
                             </div>
