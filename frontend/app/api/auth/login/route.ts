@@ -1,19 +1,18 @@
 import { NextResponse } from "next/server";
 
 import {
-  createSessionToken,
-  SESSION_COOKIE,
-  SESSION_COOKIE_OPTIONS,
-  TOKEN_COOKIE,
-} from "@/lib/session";
+  AUTH_COOKIE,
+  AUTH_COOKIE_OPTIONS,
+  EXPIRED_COOKIE_OPTIONS,
+  LEGACY_SESSION_COOKIE,
+  verifyAuthToken,
+} from "@/lib/auth-token";
 import type { AuthUser } from "@/lib/types";
 import { isUserRole } from "@/lib/types";
 
 export const runtime = "nodejs";
 
-const BACKEND_URL = (
-  process.env.BACKEND_URL ?? "http://localhost:5000"
-).replace(/\/+$/, "");
+const BACKEND_URL = process.env.BACKEND_URL;
 
 type BackendLoginResponse = {
   token?: string;
@@ -26,10 +25,10 @@ type BackendLoginResponse = {
 };
 
 export async function POST(request: Request) {
-  let body: { email?: unknown; password?: unknown };
+  let body: { email?: string; password?: string };
 
   try {
-    body = (await request.json()) as { email?: unknown; password?: unknown };
+    body = (await request.json()) as { email: string; password: string };
   } catch {
     return NextResponse.json(
       { message: "A JSON body with email and password is required." },
@@ -78,9 +77,9 @@ export async function POST(request: Request) {
     );
   }
 
-  const payload = (await upstream.json().catch(() => null)) as
-    | BackendLoginResponse
-    | null;
+  const payload = (await upstream
+    .json()
+    .catch(() => null)) as BackendLoginResponse | null;
 
   if (!upstream.ok) {
     return NextResponse.json(
@@ -107,31 +106,24 @@ export async function POST(request: Request) {
     role: payload.user.role,
   };
 
-  let sessionToken: string;
+  const auth = verifyAuthToken(payload.token);
 
-  try {
-    sessionToken = createSessionToken(user);
-  } catch (error) {
-    console.error("Unable to create session token", error);
+  if (!auth || auth.role !== user.role) {
+    console.error(
+      "Unable to verify the token issued by the authentication service",
+    );
 
     return NextResponse.json(
-      { message: "Session service is not configured." },
+      { message: "Authentication service is not configured." },
       { status: 500 },
     );
   }
 
   const response = NextResponse.json({ user });
 
-  response.cookies.set(
-    TOKEN_COOKIE,
-    payload.token,
-    SESSION_COOKIE_OPTIONS,
-  );
-  response.cookies.set(
-    SESSION_COOKIE,
-    sessionToken,
-    SESSION_COOKIE_OPTIONS,
-  );
+  response.cookies.set(AUTH_COOKIE, payload.token, AUTH_COOKIE_OPTIONS);
+  // Remove the cookie from the previous two-cookie flow.
+  response.cookies.set(LEGACY_SESSION_COOKIE, "", EXPIRED_COOKIE_OPTIONS);
   response.headers.set("Cache-Control", "no-store");
 
   return response;

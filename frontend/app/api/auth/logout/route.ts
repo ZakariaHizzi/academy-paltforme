@@ -1,16 +1,14 @@
 import { NextResponse } from "next/server";
 
 import {
+  AUTH_COOKIE,
   EXPIRED_COOKIE_OPTIONS,
-  SESSION_COOKIE,
-  TOKEN_COOKIE,
-} from "@/lib/session";
+  LEGACY_SESSION_COOKIE,
+} from "@/lib/auth-token";
 
 export const runtime = "nodejs";
 
-const BACKEND_URL = (
-  process.env.BACKEND_URL ?? "http://localhost:5000"
-).replace(/\/+$/, "");
+const BACKEND_URL = process.env.BACKEND_URL;
 
 export async function POST() {
   const internalSecret = process.env.INTERNAL_API_SECRET;
@@ -32,8 +30,8 @@ export async function POST() {
 
   const response = NextResponse.json({ message: "Logged out successfully." });
 
-  response.cookies.set(SESSION_COOKIE, "", EXPIRED_COOKIE_OPTIONS);
-  response.cookies.set(TOKEN_COOKIE, "", EXPIRED_COOKIE_OPTIONS);
+  response.cookies.set(AUTH_COOKIE, "", EXPIRED_COOKIE_OPTIONS);
+  response.cookies.set(LEGACY_SESSION_COOKIE, "", EXPIRED_COOKIE_OPTIONS);
   response.headers.set("Cache-Control", "no-store");
 
   return response;

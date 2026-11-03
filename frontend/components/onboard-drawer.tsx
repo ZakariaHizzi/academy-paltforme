@@ -3,7 +3,11 @@
 import { useState } from "react";
 
 export type DepartmentCode = "eecs" | "bio" | "law" | "business";
-export type FacultyRank = "dean" | "full" | "assoc" | "assist" | "visiting";
+export type FacultyRank =
+  | "Lecturer"
+  | "Assistant Professor"
+  | "Associate Professor"
+  | "Professor";
 
 export const DEPARTMENT_LABELS: Record<DepartmentCode, string> = {
   eecs: "Electrical Eng. & Computer Science",
@@ -23,23 +27,12 @@ export type TeacherDraft = {
   firstName: string;
   middleName: string;
   lastName: string;
-  employeeId: string;
-  title: string;
   department: DepartmentCode;
   rank: FacultyRank;
   office: string;
-  campus: string;
   email: string;
-  phone: string;
-  ext: string;
-  credits: string;
-  sections: string;
-  courses: string;
-  tenure: string;
-  hireDate: string;
-  qualification: string;
-  specialization: string;
-  status: string;
+  password: string;
+  teachingLoad: string;
 };
 
 export type StudentDraft = {
@@ -48,25 +41,11 @@ export type StudentDraft = {
   lastName: string;
   studentId: string;
   email: string;
-  phone: string;
-  dob: string;
-  gender: string;
-  program: string;
-  department: DepartmentCode;
-  level: string;
-  status: string;
-  advisor: string;
-  credits: string;
+  password: string;
+  major: string;
   gpa: string;
-  campus: string;
-  enrollmentDate: string;
-  address: string;
-  city: string;
-  country: string;
-  guardianName: string;
-  guardianPhone: string;
-  scholarship: string;
-  notes: string;
+  creditsCompleted: string;
+  campusCardBalance: string;
 };
 
 type OnboardMode = "teacher" | "student";
@@ -74,8 +53,8 @@ type OnboardMode = "teacher" | "student";
 type OnboardDrawerProps = {
   mode: OnboardMode;
   onClose: () => void;
-  onSubmitTeacher: (draft: TeacherDraft) => void;
-  onSubmitStudent: (draft: StudentDraft) => void;
+  onSubmitTeacher: (draft: TeacherDraft) => Promise<void> | void;
+  onSubmitStudent: (draft: StudentDraft) => Promise<void> | void;
 };
 
 const inputClass =
@@ -198,50 +177,10 @@ const DEPARTMENT_OPTIONS = (
 ).map((code) => ({ value: code, label: DEPARTMENT_LABELS[code] }));
 
 const RANK_OPTIONS = [
-  { value: "dean", label: "Dean / Department Chair" },
-  { value: "full", label: "Full Professor" },
-  { value: "assoc", label: "Associate Professor" },
-  { value: "assist", label: "Assistant Professor" },
-  { value: "visiting", label: "Visiting Scholar / Lecturer" },
-];
-
-const TENURE_OPTIONS = [
-  { value: "Tenured Chair", label: "Tenured Chair" },
-  { value: "Tenured", label: "Tenured" },
-  { value: "Tenure-Track", label: "Tenure-Track" },
-  { value: "Visiting Scholar", label: "Visiting Scholar" },
-  { value: "Adjunct Faculty", label: "Adjunct Faculty" },
-  { value: "Emeritus", label: "Emeritus" },
-];
-
-const STAFF_STATUS_OPTIONS = [
-  { value: "Active", label: "Active" },
-  { value: "On Leave", label: "On Leave" },
-  { value: "Emeritus", label: "Emeritus" },
-];
-
-const STUDENT_LEVEL_OPTIONS = [
-  { value: "Undergraduate Year 1", label: "Undergraduate — Year 1" },
-  { value: "Undergraduate Year 2", label: "Undergraduate — Year 2" },
-  { value: "Undergraduate Year 3", label: "Undergraduate — Year 3" },
-  { value: "Undergraduate Year 4", label: "Undergraduate — Year 4" },
-  { value: "Master's", label: "Master's Candidate" },
-  { value: "Doctoral", label: "Doctoral Candidate" },
-];
-
-const STUDENT_STATUS_OPTIONS = [
-  { value: "Active", label: "Active" },
-  { value: "Probationary", label: "Probationary" },
-  { value: "Suspended", label: "Suspended" },
-  { value: "Graduated", label: "Graduated" },
-];
-
-const SCHOLARSHIP_OPTIONS = [
-  { value: "None", label: "None / Self-Funded" },
-  { value: "Merit Scholarship", label: "Merit Scholarship" },
-  { value: "Need-Based Grant", label: "Need-Based Grant" },
-  { value: "Research Assistantship", label: "Research Assistantship" },
-  { value: "Athletic Scholarship", label: "Athletic Scholarship" },
+  { value: "Lecturer", label: "Lecturer" },
+  { value: "Assistant Professor", label: "Assistant Professor" },
+  { value: "Associate Professor", label: "Associate Professor" },
+  { value: "Professor", label: "Professor" },
 ];
 
 export default function OnboardDrawer({
@@ -253,62 +192,42 @@ export default function OnboardDrawer({
   const [submitting, setSubmitting] = useState(false);
   const isTeacher = mode === "teacher";
 
-  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
     const get = (key: string) => String(form.get(key) ?? "").trim();
 
     setSubmitting(true);
-    if (isTeacher) {
-      onSubmitTeacher({
-        firstName: get("firstName"),
-        middleName: get("middleName"),
-        lastName: get("lastName"),
-        employeeId: get("employeeId"),
-        title: get("title"),
-        department: get("department") as DepartmentCode,
-        rank: get("rank") as FacultyRank,
-        office: get("office"),
-        campus: get("campus"),
-        email: get("email"),
-        phone: get("phone"),
-        ext: get("ext"),
-        credits: get("credits"),
-        sections: get("sections"),
-        courses: get("courses"),
-        tenure: get("tenure"),
-        hireDate: get("hireDate"),
-        qualification: get("qualification"),
-        specialization: get("specialization"),
-        status: get("status"),
-      });
-    } else {
-      onSubmitStudent({
-        firstName: get("firstName"),
-        middleName: get("middleName"),
-        lastName: get("lastName"),
-        studentId: get("studentId"),
-        email: get("email"),
-        phone: get("phone"),
-        dob: get("dob"),
-        gender: get("gender"),
-        program: get("program"),
-        department: get("department") as DepartmentCode,
-        level: get("level"),
-        status: get("status"),
-        advisor: get("advisor"),
-        credits: get("credits"),
-        gpa: get("gpa"),
-        campus: get("campus"),
-        enrollmentDate: get("enrollmentDate"),
-        address: get("address"),
-        city: get("city"),
-        country: get("country"),
-        guardianName: get("guardianName"),
-        guardianPhone: get("guardianPhone"),
-        scholarship: get("scholarship"),
-        notes: get("notes"),
-      });
+
+    try {
+      if (isTeacher) {
+        await onSubmitTeacher({
+          firstName: get("firstName"),
+          middleName: get("middleName"),
+          lastName: get("lastName"),
+          department: get("department") as DepartmentCode,
+          rank: get("rank") as FacultyRank,
+          office: get("office"),
+          email: get("email"),
+          password: get("password"),
+          teachingLoad: get("teachingLoad"),
+        });
+      } else {
+        await onSubmitStudent({
+          firstName: get("firstName"),
+          middleName: get("middleName"),
+          lastName: get("lastName"),
+          studentId: get("studentId"),
+          email: get("email"),
+          password: get("password"),
+          major: get("major"),
+          gpa: get("gpa"),
+          creditsCompleted: get("creditsCompleted"),
+          campusCardBalance: get("campusCardBalance"),
+        });
+      }
+    } finally {
+      setSubmitting(false);
     }
   }
 
@@ -331,8 +250,8 @@ export default function OnboardDrawer({
             </h2>
             <p className="font-body-sm text-body-sm text-on-surface-variant mt-0.5">
               {isTeacher
-                ? "Record the complete appointment, academic assignment and contact profile for a new teacher."
-                : "Record the complete academic, personal and guardian profile for a new student."}
+                ? "Record the name, department, rank, office and teaching load for a new teacher."
+                : "Record the name, matriculation number and academic record for a new student."}
             </p>
           </div>
           <button
@@ -351,8 +270,8 @@ export default function OnboardDrawer({
               <>
                 <SectionTitle
                   icon="badge"
-                  subtitle="Legal name and institutional staff identifier."
-                  title="Identity & Employment Record"
+                  subtitle="Legal name of the teacher."
+                  title="Identity Record"
                 />
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-space-sm">
                   <TextField
@@ -373,33 +292,6 @@ export default function OnboardDrawer({
                     required
                   />
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-space-sm">
-                  <TextField
-                    label="Employee ID"
-                    name="employeeId"
-                    placeholder="FAC-401"
-                    required
-                  />
-                  <TextField
-                    label="Date of Hire"
-                    name="hireDate"
-                    required
-                    type="date"
-                  />
-                  <TextField
-                    label="Official Title"
-                    name="title"
-                    placeholder="Professor of Computer Science"
-                    required
-                  />
-                  <SelectField
-                    defaultValue="full"
-                    label="Employment Status"
-                    name="status"
-                    options={STAFF_STATUS_OPTIONS}
-                    required
-                  />
-                </div>
 
                 <SectionTitle
                   icon="school"
@@ -414,56 +306,32 @@ export default function OnboardDrawer({
                     required
                   />
                   <SelectField
+                    defaultValue="Lecturer"
                     label="Academic Rank"
                     name="rank"
                     options={RANK_OPTIONS}
                     required
                   />
-                  <SelectField
-                    label="Tenure Status"
-                    name="tenure"
-                    options={TENURE_OPTIONS}
-                    required
-                  />
                   <TextField
-                    label="Assigned Credits"
+                    label="Teaching Load (Credits)"
                     min={0}
-                    name="credits"
+                    name="teachingLoad"
                     placeholder="12"
                     type="number"
                   />
                   <TextField
-                    label="Sections Assigned"
-                    min={0}
-                    name="sections"
-                    placeholder="3"
-                    type="number"
-                  />
-                  <TextField
-                    label="Courses Taught"
-                    name="courses"
-                    placeholder="CS-101, CS-501"
+                    label="Office Location"
+                    name="office"
+                    placeholder="Turing Center 402"
                   />
                 </div>
 
                 <SectionTitle
                   icon="contact_mail"
-                  subtitle="Office location, campus, official channels and credentials."
-                  title="Contact & Credentials"
+                  subtitle="Login details for the faculty account. Stored in the users collection."
+                  title="Account Access"
                 />
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-space-sm">
-                  <TextField
-                    label="Office Location"
-                    name="office"
-                    placeholder="Turing Center 402"
-                    required
-                  />
-                  <TextField
-                    label="Campus"
-                    name="campus"
-                    placeholder="Science Quadrangle"
-                    required
-                  />
                   <TextField
                     label="Official Email"
                     name="email"
@@ -472,25 +340,11 @@ export default function OnboardDrawer({
                     type="email"
                   />
                   <TextField
-                    label="Phone Number"
-                    name="phone"
-                    placeholder="+1 (555) 010-4408"
-                  />
-                  <TextField
-                    label="Campus Extension"
-                    name="ext"
-                    placeholder="Ext. 4108"
-                  />
-                  <TextField
-                    label="Highest Qualification"
-                    name="qualification"
-                    placeholder="Ph.D. in Computer Science"
-                  />
-                  <TextField
-                    className="sm:col-span-2"
-                    label="Specialization / Research Focus"
-                    name="specialization"
-                    placeholder="Artificial intelligence, autonomous systems"
+                    label="Initial Password"
+                    name="password"
+                    placeholder="Minimum 8 characters"
+                    required
+                    type="password"
                   />
                 </div>
               </>
@@ -520,80 +374,25 @@ export default function OnboardDrawer({
                     required
                   />
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-space-sm">
-                  <TextField
-                    label="Matriculation Number"
-                    name="studentId"
-                    placeholder="VU-81920"
-                    required
-                  />
-                  <TextField
-                    label="Date of Birth"
-                    name="dob"
-                    required
-                    type="date"
-                  />
-                  <SelectField
-                    label="Gender"
-                    name="gender"
-                    options={[
-                      { value: "Female", label: "Female" },
-                      { value: "Male", label: "Male" },
-                      { value: "Non-binary", label: "Non-binary" },
-                      { value: "Prefer not to say", label: "Prefer not to say" },
-                    ]}
-                    required
-                  />
-                  <TextField
-                    label="Enrollment Date"
-                    name="enrollmentDate"
-                    required
-                    type="date"
-                  />
-                </div>
+                <TextField
+                  label="Matriculation Number"
+                  name="studentId"
+                  placeholder="VU-81920"
+                  required
+                />
 
                 <SectionTitle
                   icon="menu_book"
-                  subtitle="Programme, department, level and academic standing."
+                  subtitle="Programme of study and academic standing."
                   title="Academic Record"
                 />
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-space-sm">
                   <TextField
                     className="sm:col-span-2"
-                    label="Program of Study"
-                    name="program"
+                    label="Program of Study (Major)"
+                    name="major"
                     placeholder="B.Sc. Computer Science & Artificial Intelligence"
                     required
-                  />
-                  <SelectField
-                    label="Department"
-                    name="department"
-                    options={DEPARTMENT_OPTIONS}
-                    required
-                  />
-                  <SelectField
-                    label="Level / Year"
-                    name="level"
-                    options={STUDENT_LEVEL_OPTIONS}
-                    required
-                  />
-                  <SelectField
-                    label="Enrollment Status"
-                    name="status"
-                    options={STUDENT_STATUS_OPTIONS}
-                    required
-                  />
-                  <TextField
-                    label="Academic Advisor"
-                    name="advisor"
-                    placeholder="Prof. Marcus Thorne"
-                  />
-                  <TextField
-                    label="Registered Credits"
-                    min={0}
-                    name="credits"
-                    placeholder="18"
-                    type="number"
                   />
                   <TextField
                     label="Cumulative GPA"
@@ -604,22 +403,27 @@ export default function OnboardDrawer({
                     step="0.01"
                     type="number"
                   />
-                  <SelectField
-                    label="Scholarship / Funding"
-                    name="scholarship"
-                    options={SCHOLARSHIP_OPTIONS}
+                  <TextField
+                    label="Credits Completed"
+                    min={0}
+                    name="creditsCompleted"
+                    placeholder="48"
+                    type="number"
                   />
                   <TextField
-                    label="Campus"
-                    name="campus"
-                    placeholder="Main Campus"
+                    label="Campus Card Balance"
+                    min={0}
+                    name="campusCardBalance"
+                    placeholder="0.00"
+                    step="0.01"
+                    type="number"
                   />
                 </div>
 
                 <SectionTitle
-                  icon="home"
-                  subtitle="Direct contact details, residence and emergency guardian."
-                  title="Contact, Residence & Guardian"
+                  icon="contact_mail"
+                  subtitle="Login details for the student account. Stored in the users collection."
+                  title="Account Access"
                 />
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-space-sm">
                   <TextField
@@ -630,34 +434,11 @@ export default function OnboardDrawer({
                     type="email"
                   />
                   <TextField
-                    label="Phone Number"
-                    name="phone"
-                    placeholder="+1 (555) 010-8192"
+                    label="Initial Password"
+                    name="password"
+                    placeholder="Minimum 8 characters"
                     required
-                  />
-                  <TextField
-                    className="sm:col-span-2"
-                    label="Residential Address"
-                    name="address"
-                    placeholder="14 Scholars Row, Apt 2B"
-                  />
-                  <TextField label="City" name="city" placeholder="Veritas City" />
-                  <TextField label="Country" name="country" placeholder="United States" />
-                  <TextField
-                    label="Guardian Full Name"
-                    name="guardianName"
-                    placeholder="Ngozi Okafor"
-                  />
-                  <TextField
-                    label="Guardian Phone"
-                    name="guardianPhone"
-                    placeholder="+1 (555) 010-7711"
-                  />
-                  <TextField
-                    className="sm:col-span-2"
-                    label="Administrative Notes"
-                    name="notes"
-                    placeholder="Accommodations, transfer credits or other remarks"
+                    type="password"
                   />
                 </div>
               </>

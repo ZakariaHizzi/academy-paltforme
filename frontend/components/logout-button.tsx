@@ -33,7 +33,7 @@ export default function LogoutButton({ className = "" }: LogoutButtonProps) {
       title={
         state === "error"
           ? "Sign out failed. Click to retry."
-          : "Sign out of your session"
+          : "Sign out of your account"
       }
       type="button"
     >

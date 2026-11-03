@@ -2,6 +2,7 @@ import type {
   ApiErrorPayload,
   StudentProfile,
   TeacherProfile,
+  TeacherRoster,
 } from "./types";
 
 const API_BASE_URL = "/api/backend";
@@ -76,7 +77,7 @@ export async function apiFetch<T>(
 
   if (!response.ok) {
     if (response.status === 401) {
-      await clearSessionAndRedirect();
+      await clearAuthAndRedirect();
     }
 
     throw new ApiError(
@@ -90,9 +91,9 @@ export async function apiFetch<T>(
 }
 
 /**
- * Handles session expiry cleanup and redirection to /login safely without infinite loops.
+ * Handles expired cookie cleanup and redirection to /login safely without infinite loops.
  */
-async function clearSessionAndRedirect(): Promise<void> {
+async function clearAuthAndRedirect(): Promise<void> {
   if (typeof window === "undefined" || redirectingToLogin) {
     return;
   }
@@ -151,9 +152,13 @@ function getErrorMessage(payload: ApiErrorPayload, status: number): string {
 export const api = {
   student: {
     getProfile: () => apiFetch<StudentProfile>("/student/profile"),
+    getById: (id: string) =>
+      apiFetch<StudentProfile>(`/student/${encodeURIComponent(id)}`),
   },
   faculty: {
     getProfile: () => apiFetch<TeacherProfile>("/faculty/profile"),
+    getStudentById: (id: string) =>
+      apiFetch<StudentProfile>(`/student/${encodeURIComponent(id)}`),
   },
   director: {
     listStudents: () => apiFetch<StudentProfile[]>("/student"),
@@ -168,5 +173,22 @@ export const api = {
         method: "POST",
         body: data,
       }),
+    updateStudent: (studentId: string, data: unknown) =>
+      apiFetch<StudentProfile>(`/student/${encodeURIComponent(studentId)}`, {
+        method: "PATCH",
+        body: data,
+      }),
+    getTeacherRoster: (teacherId: string) =>
+      apiFetch<TeacherRoster>(
+        `/faculty/${encodeURIComponent(teacherId)}/students`,
+      ),
+    updateTeacherStudents: (teacherId: string, students: string[]) =>
+      apiFetch<TeacherProfile>(
+        `/faculty/${encodeURIComponent(teacherId)}/students`,
+        {
+          method: "PUT",
+          body: { students },
+        },
+      ),
   },
 };

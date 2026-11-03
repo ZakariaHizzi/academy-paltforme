@@ -59,7 +59,7 @@ export async function login(
     !isUserRole(payload.user.role)
   ) {
     throw new ApiError(
-      "The authentication service returned an invalid session.",
+      "The authentication service returned an invalid user.",
       502,
       payload,
     );

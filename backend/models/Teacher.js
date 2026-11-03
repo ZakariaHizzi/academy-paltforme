@@ -20,7 +20,7 @@ const teacherSchema = new mongoose.Schema(
     },
     rank: {
       type: String,
-      enum: ['Lecturer', 'Assistant Professor', 'Associate Professor', 'Professor', 'Tenured Chair'],
+      enum: ['Lecturer', 'Assistant Professor', 'Associate Professor', 'Professor'],
       default: 'Lecturer',
     },
     office: {
@@ -31,6 +31,15 @@ const teacherSchema = new mongoose.Schema(
       type: Number,
       default: 0,
       min: 0,
+    },
+    students: {
+      type: [
+        {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: 'Student',
+        },
+      ],
+      default: [],
     },
   },
   {

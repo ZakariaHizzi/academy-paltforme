@@ -1,21 +1,25 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
-import { SESSION_COOKIE, verifySessionToken, type Session } from "./session";
+import {
+  AUTH_COOKIE,
+  verifyAuthToken,
+  type AuthToken,
+} from "./auth-token";
 import type { UserRole } from "./types";
 
-export async function getSession(): Promise<Session | null> {
+export async function getAuthToken(): Promise<AuthToken | null> {
   const cookieStore = await cookies();
 
-  return verifySessionToken(cookieStore.get(SESSION_COOKIE)?.value);
+  return verifyAuthToken(cookieStore.get(AUTH_COOKIE)?.value);
 }
 
-export async function requireRole(role: UserRole): Promise<Session> {
-  const session = await getSession();
+export async function requireRole(role: UserRole): Promise<AuthToken> {
+  const token = await getAuthToken();
 
-  if (!session || session.role !== role) {
+  if (!token || token.role !== role) {
     redirect("/login");
   }
 
-  return session;
+  return token;
 }

@@ -1,84 +1,23 @@
 const express = require('express');
-const bcrypt = require('bcrypt');
-const Student = require('../models/Student');
-const User = require('../models/User');
 const { verifyToken, authorizeRoles } = require('../middleware/authMiddleware');
+const {
+  listStudents,
+  getStudentProfile,
+  getStudentById,
+  createStudent,
+  updateStudent,
+} = require('../controllers/studentController');
 
 const router = express.Router();
 
-router.get('/', verifyToken, authorizeRoles('director'), async (req, res) => {
-  try {
-    const students = await Student.find().populate('user', 'email role');
-    return res.json(students);
-  } catch (error) {
-    return res.status(500).json({ message: 'Server error', error: error.message });
-  }
-});
+router.get('/', verifyToken, authorizeRoles('director'), listStudents);
 
-router.get('/profile', verifyToken, authorizeRoles('student'), async (req, res) => {
-  try {
-    const student = await Student.findOne({ user: req.user.id }).populate('user', 'email role');
+router.get('/profile', verifyToken, authorizeRoles('student'), getStudentProfile);
 
-    if (!student) {
-      return res.status(404).json({ message: 'Student not found' });
-    }
+router.get('/:id', verifyToken, authorizeRoles('director', 'faculty'), getStudentById);
 
-    return res.json(student);
-  } catch (error) {
-    return res.status(500).json({ message: 'Server error', error: error.message });
-  }
-});
+router.post('/', verifyToken, authorizeRoles('director'), createStudent);
 
-router.post('/', verifyToken, authorizeRoles('director'), async (req, res) => {
-  try {
-    const {
-      name,
-      email,
-      password,
-      studentId,
-      major,
-      gpa,
-      creditsCompleted,
-      campusCardBalance,
-    } = req.body;
-
-    if (!name || !email || !password || !studentId || !major) {
-      return res.status(400).json({
-        message: 'Missing required fields: name, email, password, studentId, and major are required',
-      });
-    }
-
-    const normalizedEmail = String(email).trim().toLowerCase();
-    const existingUser = await User.findOne({ email: normalizedEmail });
-    if (existingUser) {
-      return res.status(409).json({ message: 'A user with this email already exists' });
-    }
-
-    const hashedPassword = await bcrypt.hash(password, 10);
-
-    const user = await User.create({
-      email: normalizedEmail,
-      password: hashedPassword,
-      role: 'student',
-    });
-
-    const student = await Student.create({
-      user: user._id,
-      name,
-      studentId,
-      major,
-      gpa: Number(gpa) || 0,
-      creditsCompleted: Number(creditsCompleted) || 0,
-      campusCardBalance: Number(campusCardBalance) || 0,
-    });
-
-    return res.status(201).json({
-      user: { id: user._id, email: user.email, role: user.role },
-      student,
-    });
-  } catch (error) {
-    return res.status(500).json({ message: 'Server error', error: error.message });
-  }
-});
+router.patch('/:id', verifyToken, authorizeRoles('director', 'faculty'), updateStudent);
 
 module.exports = router;

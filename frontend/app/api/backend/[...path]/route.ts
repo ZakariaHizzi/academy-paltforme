@@ -2,11 +2,11 @@ import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 
 import {
+  AUTH_COOKIE,
   EXPIRED_COOKIE_OPTIONS,
-  SESSION_COOKIE,
-  TOKEN_COOKIE,
-  verifySessionToken,
-} from "@/lib/session";
+  LEGACY_SESSION_COOKIE,
+  verifyAuthToken,
+} from "@/lib/auth-token";
 
 export const runtime = "nodejs";
 
@@ -45,17 +45,20 @@ async function proxyRequest(
   }
 
   const cookieStore = await cookies();
-  const sessionToken = cookieStore.get(SESSION_COOKIE)?.value;
-  const session = verifySessionToken(sessionToken);
-  const token = cookieStore.get(TOKEN_COOKIE)?.value;
+  const token = cookieStore.get(AUTH_COOKIE)?.value;
+  const auth = verifyAuthToken(token);
 
-  if (!session || !token) {
+  if (!auth || !token) {
     const unauthResponse = NextResponse.json(
-      { message: "Not authenticated or session has expired." },
+      { message: "Not authenticated or token has expired." },
       { status: 401 },
     );
-    unauthResponse.cookies.set(SESSION_COOKIE, "", EXPIRED_COOKIE_OPTIONS);
-    unauthResponse.cookies.set(TOKEN_COOKIE, "", EXPIRED_COOKIE_OPTIONS);
+    unauthResponse.cookies.set(AUTH_COOKIE, "", EXPIRED_COOKIE_OPTIONS);
+    unauthResponse.cookies.set(
+      LEGACY_SESSION_COOKIE,
+      "",
+      EXPIRED_COOKIE_OPTIONS,
+    );
     return unauthResponse;
   }
 
@@ -64,14 +67,24 @@ async function proxyRequest(
 
   if (resource === "student") {
     if (isProfile) {
-      if (session.role !== "student" && session.role !== "director") {
+      if (auth.role !== "student" && auth.role !== "director") {
+        return NextResponse.json(
+          { message: "Forbidden: Insufficient permissions." },
+          { status: 403 },
+        );
+      }
+    } else if (
+      path.length === 2 &&
+      (request.method === "GET" || request.method === "PATCH")
+    ) {
+      if (auth.role !== "faculty" && auth.role !== "director") {
         return NextResponse.json(
           { message: "Forbidden: Insufficient permissions." },
           { status: 403 },
         );
       }
     } else {
-      if (session.role !== "director") {
+      if (auth.role !== "director") {
         return NextResponse.json(
           { message: "Forbidden: Director role required." },
           { status: 403 },
@@ -80,14 +93,25 @@ async function proxyRequest(
     }
   } else if (resource === "faculty") {
     if (isProfile) {
-      if (session.role !== "faculty" && session.role !== "director") {
+      if (auth.role !== "faculty" && auth.role !== "director") {
+        return NextResponse.json(
+          { message: "Forbidden: Insufficient permissions." },
+          { status: 403 },
+        );
+      }
+    } else if (
+      request.method === "GET" &&
+      path.length === 3 &&
+      path[2] === "students"
+    ) {
+      if (auth.role !== "faculty" && auth.role !== "director") {
         return NextResponse.json(
           { message: "Forbidden: Insufficient permissions." },
           { status: 403 },
         );
       }
     } else {
-      if (session.role !== "director") {
+      if (auth.role !== "director") {
         return NextResponse.json(
           { message: "Forbidden: Director role required." },
           { status: 403 },
@@ -160,8 +184,8 @@ async function proxyRequest(
 
   // If Express signals 401 Unauthorized (e.g., token expired or revoked), immediately clear cookies
   if (upstream.status === 401) {
-    response.cookies.set(SESSION_COOKIE, "", EXPIRED_COOKIE_OPTIONS);
-    response.cookies.set(TOKEN_COOKIE, "", EXPIRED_COOKIE_OPTIONS);
+    response.cookies.set(AUTH_COOKIE, "", EXPIRED_COOKIE_OPTIONS);
+    response.cookies.set(LEGACY_SESSION_COOKIE, "", EXPIRED_COOKIE_OPTIONS);
   }
 
   response.headers.set("Cache-Control", "no-store");

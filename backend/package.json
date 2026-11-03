@@ -1,4 +1,8 @@
 {
+  "scripts": {
+    "backfill:roster": "node scripts/backfillRosterFields.js",
+    "seed:portal": "node scripts/seedPortalData.js"
+  },
   "dependencies": {
     "bcrypt": "^6.0.0",
     "cors": "^2.8.6",

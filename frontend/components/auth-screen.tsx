@@ -21,8 +21,8 @@ export default function AuthScreen() {
     event.preventDefault();
 
     const form = new FormData(event.currentTarget);
-    const email = String(form.get("email") ?? "").trim();
-    const password = String(form.get("login-password") ?? "");
+    const email = String(form.get("email")).trim();
+    const password = String(form.get("login-password"));
 
     if (!email || !password) {
       setLoginError("Enter your official email and password.");
@@ -149,8 +149,8 @@ export default function AuthScreen() {
                   Sign In to Portal
                 </h2>
                 <p className="font-body-sm text-body-sm text-on-surface-variant mt-0.5">
-                  Students, faculty and administrators use the same institutional
-                  credentials.
+                  Students, faculty and administrators use the same
+                  institutional credentials.
                 </p>
               </div>
 
@@ -167,7 +167,9 @@ export default function AuthScreen() {
                     <span className="material-symbols-outlined text-lg shrink-0">
                       error
                     </span>
-                    <span className="font-body-sm text-body-sm">{loginError}</span>
+                    <span className="font-body-sm text-body-sm">
+                      {loginError}
+                    </span>
                   </div>
                 ) : null}
                 {/* University ID / Email Field */}
