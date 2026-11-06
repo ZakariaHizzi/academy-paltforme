@@ -1,37 +1,7 @@
-const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 
-/**
- * Validates that requests originate from the trusted Next.js BFF layer
- * using a shared cryptographic secret via the X-Internal-Secret header.
- * Direct external requests bypassing the Next.js gateway are blocked.
- */
-const verifyInternalSecret = (req, res, next) => {
-  const secret = process.env.INTERNAL_API_SECRET;
-
-  if (!secret) {
-    console.error('INTERNAL_API_SECRET is not configured on the backend server.');
-    return res.status(500).json({ message: 'Internal server configuration error' });
-  }
-
-  const clientSecret = req.headers['x-internal-secret'];
-
-  if (!clientSecret || typeof clientSecret !== 'string') {
-    return res.status(403).json({ message: 'Forbidden: Direct API access is not permitted' });
-  }
-
-  const expectedBuffer = Buffer.from(secret, 'utf8');
-  const actualBuffer = Buffer.from(clientSecret, 'utf8');
-
-  if (
-    expectedBuffer.length !== actualBuffer.length ||
-    !crypto.timingSafeEqual(expectedBuffer, actualBuffer)
-  ) {
-    return res.status(403).json({ message: 'Forbidden: Invalid internal API credentials' });
-  }
-
-  return next();
-};
+// NOTE: verifyInternalSecret (X-Internal-Secret header check) has been removed.
+// The API no longer requires a shared internal secret for direct access.
 
 /**
  * Validates the JWT Bearer token provided in the Authorization header.
@@ -70,7 +40,6 @@ const authorizeRoles = (...allowedRoles) => {
 };
 
 module.exports = {
-  verifyInternalSecret,
   verifyToken,
   authorizeRoles,
 };

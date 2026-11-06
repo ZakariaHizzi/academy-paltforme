@@ -124,11 +124,6 @@ async function proxyRequest(
   headers.set("Accept", "application/json");
   headers.set("Authorization", `Bearer ${token}`);
 
-  const internalSecret = process.env.INTERNAL_API_SECRET;
-  if (internalSecret) {
-    headers.set("X-Internal-Secret", internalSecret);
-  }
-
   if (contentType) {
     headers.set("Content-Type", contentType);
   }

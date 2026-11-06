@@ -48,15 +48,10 @@ export async function POST(request: Request) {
     );
   }
 
-  const internalSecret = process.env.INTERNAL_API_SECRET;
   const upstreamHeaders: Record<string, string> = {
     Accept: "application/json",
     "Content-Type": "application/json",
   };
-
-  if (internalSecret) {
-    upstreamHeaders["X-Internal-Secret"] = internalSecret;
-  }
 
   let upstream: Response;
 

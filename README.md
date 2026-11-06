@@ -2,7 +2,7 @@
 
 A full-stack university platform that combines a public university website with a secure, role-based academic portal for **students**, **faculty**, and the **director**.
 
-The project is split into a **Next.js 16 / React 19** frontend and an **Express 5 / MongoDB** backend. The browser-facing app acts as a Backend-for-Frontend (BFF): authentication cookies, role checks, and a guarded API proxy sit in Next.js, while Express exposes the data API only to trusted requests carrying an internal shared secret.
+The project is split into a **Next.js 16 / React 19** frontend and an **Express 5 / MongoDB** backend. The browser-facing app acts as a Backend-for-Frontend (BFF): authentication cookies, role checks, and a guarded API proxy sit in Next.js, while Express exposes the data API with JWT and role-based authorization per route. The API can also be called directly, subject to the same authentication checks.
 
 ---
 
@@ -32,12 +32,11 @@ Next.js frontend (port 3000)
   ├── Cookie-based session + route protection (proxy.ts)
   ├── /api/auth/login, /api/auth/logout
   └── /api/backend/*  ──►  Express backend (port 5000)
-                              ├── X-Internal-Secret verification
                               ├── JWT + role verification
                               └── Mongoose  ──►  MongoDB
 ```
 
-**Why the BFF?** The Express API is never called directly from the browser. Next.js holds the JWT cookie and forwards it as a Bearer token, adds the internal secret, validates the session, and enforces role access before the request reaches Express. This keeps tokens out of client-side JavaScript and prevents bypassing the gateway.
+**Why the BFF?** The Express API is not called directly from the browser in normal use. Next.js holds the JWT cookie and forwards it as a Bearer token, validates the session, and enforces role access before the request reaches Express. This keeps tokens out of client-side JavaScript and prevents bypassing the gateway. The API can also be called directly now that the internal-secret check has been removed; per-route JWT and role checks still apply.
 
 ---
 
@@ -120,7 +119,6 @@ MONGO_URL=mongodb://127.0.0.1:27017/veritas
 JWT_SECRET=replace-with-a-long-random-secret
 JWT_EXPIRES_IN=7d
 FRONTEND_URL=http://localhost:3000
-INTERNAL_API_SECRET=replace-with-another-long-random-secret
 SEED_STUDENT_PASSWORD=replace-with-a-demo-password
 ```
 
@@ -131,10 +129,9 @@ Create `frontend/.env`:
 ```env
 BACKEND_URL=http://localhost:5000
 JWT_SECRET=the-same-value-as-backend-JWT_SECRET
-INTERNAL_API_SECRET=the-same-value-as-backend-INTERNAL_API_SECRET
 ```
 
-`JWT_SECRET` must match on both sides so Next.js can verify the token issued by Express. `INTERNAL_API_SECRET` must also match, because Next.js sends it as `X-Internal-Secret` and Express rejects requests without it.
+`JWT_SECRET` must match on both sides so Next.js can verify the token issued by Express.
 
 ### 4. Run the backend
 
@@ -169,8 +166,7 @@ Open `http://localhost:3000`.
 | `MONGO_URL` | Yes | MongoDB connection string (`MONGO_URI` is also accepted). |
 | `JWT_SECRET` | Yes | Signs and verifies JWTs. |
 | `JWT_EXPIRES_IN` | Yes | Token lifetime, e.g. `7d`. |
-| `FRONTEND_URL` | No | Allowed CORS origin (default `http://localhost:3000`). |
-| `INTERNAL_API_SECRET` | Yes | Shared secret checked on every Express request. |
+| `FRONTEND_URL` | No | Comma-separated allowed CORS origin(s) (default `http://localhost:3000`). |
 | `SEED_STUDENT_PASSWORD` | Seed only | Password assigned to demo student accounts. |
 
 ### Frontend
@@ -179,7 +175,6 @@ Open `http://localhost:3000`.
 | --- | --- | --- |
 | `BACKEND_URL` | Yes | Express API base URL used by the BFF. |
 | `JWT_SECRET` | Yes | Verifies backend-issued JWTs in middleware and route handlers. |
-| `INTERNAL_API_SECRET` | Yes | Secret forwarded to Express as `X-Internal-Secret`. |
 
 > Never commit real `.env` files or production secrets. The repository root `.gitignore` excludes `.env` files.
 
@@ -227,7 +222,7 @@ This fills missing `classBlockProps` on students and links all students to teach
 
 ## API reference
 
-All Express routes are protected by the internal secret. In normal use, the browser calls the matching Next.js BFF endpoint under `/api/backend/*`, which adds both the secret and the user's Bearer token.
+All protected Express routes require a valid JWT Bearer token and apply role checks. The API can be called directly, or through the Next.js BFF endpoint under `/api/backend/*`, which validates the session and forwards the user's Bearer token.
 
 ### Authentication
 
@@ -264,8 +259,8 @@ All Express routes are protected by the internal secret. In normal use, the brow
 - **JWT authentication** — Tokens are signed with `JWT_SECRET`, expire according to `JWT_EXPIRES_IN`, and are stored in an HttpOnly, SameSite=Lax cookie (`veritas_token`).
 - **Cookie verification in Next.js** — `lib/auth-token.ts` verifies the HS256 signature with `timingSafeEqual` before trusting any claim.
 - **Route protection** — `proxy.ts` redirects unauthenticated or wrong-role users away from `/student`, `/faculty`, and `/director`, and clears invalid cookies.
-- **BFF authorization** — The `/api/backend/[...path]` handler validates the session, restricts allowed resources, enforces role access, and forwards the Bearer token plus `X-Internal-Secret`.
-- **Backend lockdown** — Express compares `X-Internal-Secret` with `timingSafeEqual` and rejects direct external requests, then applies JWT and role checks per route.
+- **BFF authorization** — The `/api/backend/[...path]` handler validates the session, restricts allowed resources, enforces role access, and forwards the Bearer token.
+- **Backend authorization** — Express applies JWT and role checks per route. The former `X-Internal-Secret` check has been removed, so direct API calls are accepted as long as they pass normal authentication and authorization.
 - **Input validation** — Controllers validate required fields, shapes, allowed enum values, numeric ranges, ObjectIds, and duplicate emails/student IDs.
 - **Response hygiene** — API and auth responses use `Cache-Control: no-store`; 401 responses clear stale cookies.
 

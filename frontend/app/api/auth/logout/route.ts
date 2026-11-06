@@ -11,21 +11,16 @@ export const runtime = "nodejs";
 const BACKEND_URL = process.env.BACKEND_URL;
 
 export async function POST() {
-  const internalSecret = process.env.INTERNAL_API_SECRET;
-
-  if (internalSecret) {
-    try {
-      await fetch(`${BACKEND_URL}/api/auth/logout`, {
-        method: "POST",
-        cache: "no-store",
-        headers: {
-          Accept: "application/json",
-          "X-Internal-Secret": internalSecret,
-        },
-      });
-    } catch {
-      // Upstream notification is best-effort; cookie deletion is the authoritative logout
-    }
+  try {
+    await fetch(`${BACKEND_URL}/api/auth/logout`, {
+      method: "POST",
+      cache: "no-store",
+      headers: {
+        Accept: "application/json",
+      },
+    });
+  } catch {
+    // Upstream notification is best-effort; cookie deletion is the authoritative logout
   }
 
   const response = NextResponse.json({ message: "Logged out successfully." });

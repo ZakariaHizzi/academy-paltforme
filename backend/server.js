@@ -5,7 +5,6 @@ const dotenv = require("dotenv");
 dotenv.config();
 
 const connectDB = require("./config/db");
-const { verifyInternalSecret } = require("./middleware/authMiddleware");
 const authRoutes = require("./routes/authRoutes");
 const studentRoutes = require("./routes/studentRoutes");
 const facultyRoutes = require("./routes/facultyRoutes");
@@ -14,17 +13,31 @@ const app = express();
 
 connectDB();
 
+const isDevelopment = process.env.NODE_ENV !== "production";
+
+const allowedOrigins = (process.env.FRONTEND_URL || "http://localhost:3000")
+  .split(",")
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
 app.use(
   cors({
-    origin: process.env.FRONTEND_URL || "http://localhost:3000",
+    origin: (origin, callback) => {
+      // Allow non-browser requests (no Origin header) and any origin in development.
+      if (isDevelopment || !origin || allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+      return callback(null, false);
+    },
     credentials: true,
   }),
 );
 
 app.use(express.json());
 
-// Protect all internal API endpoints from direct external access
-app.use(verifyInternalSecret);
+// Internal API secret verification (X-Internal-Secret) has been removed so the
+// API can be called directly. JWT authentication (verifyToken) and role checks
+// (authorizeRoles) are still applied per route.
 
 app.use("/api/auth", authRoutes);
 app.use("/api/student", studentRoutes);
