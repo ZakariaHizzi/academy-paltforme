@@ -15,7 +15,7 @@ connectDB();
 
 const isDevelopment = process.env.NODE_ENV !== "production";
 
-const allowedOrigins = process.env.FRONTEND_URL.split(",")
+const allowedOrigins = process.env.FRONTEND_URL
   .map((origin) => origin.trim())
   .filter(Boolean);
 
