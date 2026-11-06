@@ -1,7 +1,11 @@
 {
   "scripts": {
+    "start": "node server.js",
     "backfill:roster": "node scripts/backfillRosterFields.js",
     "seed:portal": "node scripts/seedPortalData.js"
+  },
+  "engines": {
+    "node": "22.x"
   },
   "dependencies": {
     "bcrypt": "^6.0.0",
