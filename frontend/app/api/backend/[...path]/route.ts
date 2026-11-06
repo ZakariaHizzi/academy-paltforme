@@ -10,7 +10,7 @@ import {
 
 export const runtime = "nodejs";
 
-const BACKEND_URL = process.env.BACKEND_URL;
+const BACKEND_URL = "https://academy-paltforme-backend.vercel.app";
 
 const BACKEND_TIMEOUT_MS = 15_000;
 
