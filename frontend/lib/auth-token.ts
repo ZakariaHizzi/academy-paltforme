@@ -18,8 +18,9 @@ export const AUTH_COOKIE_OPTIONS = {
   httpOnly: true,
   // Secure cookies are only required over HTTPS. In local development the app
   // runs on http://localhost, where some browsers reject Secure cookies.
-  secure: true,
-  sameSite: "none",
+  secure: isProduction,
+  // Cross-site cookies need SameSite=None in production; local HTTP uses Lax.
+  sameSite: isProduction ? "none" : "lax",
   path: "/",
   maxAge: AUTH_COOKIE_MAX_AGE,
 } as const;
