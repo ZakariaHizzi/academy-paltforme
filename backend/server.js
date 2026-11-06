@@ -13,7 +13,7 @@ const app = express();
 
 const isDevelopment = process.env.NODE_ENV !== "production";
 
-const allowedOrigins = (process.env.FRONTEND_URL || "http://localhost:3000")
+const allowedOrigins = "https://academy-paltforme-sfmv.vercel.app"
   .split(",")
   .map((origin) => origin.trim())
   .filter(Boolean);
