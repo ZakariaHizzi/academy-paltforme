@@ -18,7 +18,7 @@ export const AUTH_COOKIE_OPTIONS = {
   sameSite: "none",
   path: "/",
   maxAge: AUTH_COOKIE_MAX_AGE,
-};
+} as const;
 
 export const EXPIRED_COOKIE_OPTIONS = {
   ...AUTH_COOKIE_OPTIONS,
