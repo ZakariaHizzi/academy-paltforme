@@ -12,10 +12,14 @@ export const LEGACY_SESSION_COOKIE = "veritas_session";
 // 7 days in seconds, aligned with the backend JWT_EXPIRES_IN default.
 export const AUTH_COOKIE_MAX_AGE = 60 * 60 * 24 * 7;
 
+const isProduction = process.env.NODE_ENV === "production";
+
 export const AUTH_COOKIE_OPTIONS = {
   httpOnly: true,
-  secure: true,
-  sameSite: "none",
+  // Secure cookies are only required over HTTPS. In local development the app
+  // runs on http://localhost, where some browsers reject Secure cookies.
+  secure: isProduction,
+  sameSite: "lax",
   path: "/",
   maxAge: AUTH_COOKIE_MAX_AGE,
 } as const;
@@ -90,10 +94,7 @@ export function verifyAuthToken(
     return null;
   }
 
-  if (
-    actual.length !== expected.length ||
-    !timingSafeEqual(actual, expected)
-  ) {
+  if (actual.length !== expected.length || !timingSafeEqual(actual, expected)) {
     return null;
   }
 
